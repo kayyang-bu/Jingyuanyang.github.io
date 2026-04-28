@@ -4,6 +4,6 @@ title: "Contact"
 
 ## Get in Touch
 
-- 📧 Email: your.email@bu.edu
-- 💼 LinkedIn: [linkedin.com/in/yourname](https://linkedin.com/in/yourname)
+- 📧 Email: kayyang@bu.edu
+- 💼 LinkedIn: [linkedin.com/in/jingyuanyang]https://linkedin.com/in/jingyuanyang
 - 💻 GitHub: [@kayyang-bu](https://github.com/kayyang-bu)
