@@ -1,19 +1,23 @@
 project:
   type: website
+  output-dir: _site
 
 website:
-  title: "Jingyuan Yang"
+  title: "Jingyuan Yang Portfolio"
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: about.qmd
+        text: About
+      - href: projects.qmd
+        text: Projects
+      - href: contact.qmd
+        text: Contact
 
 format:
   html:
-    theme:
-      - cosmo
-      - brand
+    theme: cosmo
     css: styles.css
     toc: true
 
