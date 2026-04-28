@@ -1,0 +1,414 @@
+---
+title: "Data Cleaning & Preprocessing"
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    embed-resources: true
+execute:
+  echo: false
+  eval: true
+  
+---
+
+## Overview
+
+This document performs all data cleaning and preprocessing steps on the
+**Lightcast 2024** job postings dataset. After running all cells, the
+cleaned `df` object is ready to use — copy this file and continue writing
+your own analysis directly below Section 5.
+
+### Dataset Context
+
+The Lightcast 2024 dataset is pre-filtered to **data, analytics, and tech
+occupations** (~72,000 postings, 131 columns). Key quirks to be aware of:
+
+| Issue | Detail |
+|---|---|
+| `TITLE` | Hash/ID string — **not** human-readable. Use `TITLE_RAW` for job titles. |
+| `COMPANY` | Numeric ID — **not** human-readable. Use `COMPANY_NAME` or `COMPANY_RAW`. |
+| `SALARY` / `SALARY_FROM` / `SALARY_TO` | ~55–58 % missing by design (employers often omit salary). **Do not drop** these columns. |
+| `MAX_EDULEVELS_NAME` | 77 % missing — use `MIN_EDULEVELS_NAME` instead. |
+| `LIGHTCAST_SECTORS_NAME` | 75 % missing — use `NAICS_2022_6_NAME` for industry. |
+
+---
+
+## 0. Install & Load Packages
+
+```{python}
+import subprocess, sys
+
+required = ["gdown", "pandas", "numpy", "missingno", "matplotlib", "seaborn"]
+for pkg in required:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import missingno as msno
+
+pd.set_option("display.max_columns", 60)
+pd.set_option("display.float_format", "{:,.2f}".format)
+sns.set_theme(style="whitegrid")
+
+print("All packages loaded.")
+```
+
+---
+
+## 1. Download & Load Raw Data
+
+```{python}
+import gdown, os
+
+FILE_ID = "1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ"
+RAW_PATH = "lightcast_2024.csv"
+
+if not os.path.exists(RAW_PATH):
+    gdown.download(
+        f"https://drive.google.com/uc?id={FILE_ID}",
+        RAW_PATH,
+        quiet=False
+    )
+else:
+    print(f"File already exists: {RAW_PATH}")
+
+df_raw = pd.read_csv(RAW_PATH, low_memory=False)
+print(f"Raw shape: {df_raw.shape[0]:,} rows × {df_raw.shape[1]} columns")
+```
+
+---
+
+## 2. Raw Data Inspection
+
+### 2.1 Column List & Dtypes
+
+```{python}
+print(f"Total columns: {df_raw.shape[1]}")
+print(f"\nDtype summary:")
+print(df_raw.dtypes.value_counts().to_string())
+print(f"\nAll columns:")
+for c in df_raw.columns:
+    print(f"  {c:<50s}  [{df_raw[c].dtype}]")
+```
+
+### 2.2 Missing Value Profile
+
+```{python}
+# NOTE: Several columns are intentionally high-missing:
+#   SALARY / SALARY_FROM / SALARY_TO  ~55-58%  (employers often omit salary)
+#   LIGHTCAST_SECTORS_NAME            ~75%     (sector taxonomy coverage gap)
+#   MAX_EDULEVELS_NAME                ~77%     (max education rarely specified)
+# These are KEPT and handled separately — they are not data quality errors.
+
+missing = pd.DataFrame({
+    "missing_count": df_raw.isnull().sum(),
+    "missing_pct":   df_raw.isnull().mean() * 100
+}).sort_values("missing_pct", ascending=False)
+
+print("Columns with missing values:")
+print(missing[missing["missing_count"] > 0].to_string())
+```
+
+### 2.3 Missing Value Heatmap
+
+```{python}
+plt.figure(figsize=(14, 6))
+msno.heatmap(df_raw, cmap="coolwarm")
+plt.title("Missing Values Correlation Heatmap — Raw Data", fontsize=14)
+plt.tight_layout()
+plt.show()
+```
+
+### 2.4 Basic Statistics
+
+```{python}
+print("=== Numeric Columns ===")
+display(df_raw.describe(include=[np.number]).T)
+
+print("\n=== Object Columns (sample top value) ===")
+for c in df_raw.select_dtypes("object").columns:
+    n   = df_raw[c].nunique()
+    top = df_raw[c].value_counts().index[0] if n > 0 else "N/A"
+    print(f"  {c:<45s}  unique={n:6,}  top='{str(top)[:50]}'")
+```
+
+---
+
+## 3. Data Cleaning
+
+```{python}
+df = df_raw.copy()
+print(f"Starting shape: {df.shape}")
+```
+
+### 3.1 Drop Tracking & Redundant Columns
+
+We remove metadata columns (hash IDs, URLs, internal tracking) and older
+NAICS / SOC hierarchy levels that are superseded by the 2022 / 2021
+versions we keep.
+
+**Columns retained:**
+
+- `NAICS_2022_2` through `NAICS_2022_6` (and their `_NAME` variants) —
+  current industry classification
+- `SOC_2021_2` through `SOC_2021_5` (and `_NAME` variants) — current
+  occupation classification
+- All `LOT_*` occupation taxonomy columns
+
+```{python}
+columns_to_drop = [
+    # Internal metadata / tracking
+    "ID", "URL", "ACTIVE_URLS", "ACTIVE_SOURCES_INFO",
+    "DUPLICATES", "LAST_UPDATED_TIMESTAMP", "LAST_UPDATED_DATE",
+    # Older shorthand NAICS codes (superseded by NAICS_2022_* series)
+    "NAICS2", "NAICS3", "NAICS4", "NAICS5", "NAICS6",
+    # Older SOC codes without year suffix (superseded by SOC_2021_* series)
+    "SOC_2", "SOC_2_NAME", "SOC_3", "SOC_3_NAME", "SOC_5", "SOC_5_NAME",
+]
+
+existing_drops = [c for c in columns_to_drop if c in df.columns]
+df.drop(columns=existing_drops, inplace=True)
+
+print(f"Dropped {len(existing_drops)} columns: {existing_drops}")
+print(f"Shape after step 3.1: {df.shape}")
+```
+
+### 3.2 Drop High-Missing Columns (with Salary Protection)
+
+We drop columns where **more than 50 % of values are missing**, but
+**explicitly protect** salary and education columns from this rule.
+
+**Why protect salary columns?**
+`SALARY`, `SALARY_FROM`, and `SALARY_TO` are each ~55–58 % missing because
+many employers choose not to post salary information — this is normal for
+job postings data, not a data quality issue. The remaining ~42 % (≈ 30,000
+rows) provides a sufficient sample for salary analysis. Dropping them would
+silently break all downstream salary work.
+
+```{python}
+# Columns to protect from the >50% missing drop rule
+PROTECT_COLS = [
+    "SALARY", "SALARY_FROM", "SALARY_TO", "ORIGINAL_PAY_PERIOD",
+    "MIN_YEARS_EXPERIENCE", "MAX_YEARS_EXPERIENCE",
+    "LIGHTCAST_SECTORS", "LIGHTCAST_SECTORS_NAME",
+    "MIN_EDULEVELS", "MIN_EDULEVELS_NAME",
+    "MAX_EDULEVELS", "MAX_EDULEVELS_NAME",
+]
+protect_existing = [c for c in PROTECT_COLS if c in df.columns]
+non_protected    = [c for c in df.columns if c not in protect_existing]
+
+# Apply 50% threshold only to non-protected columns
+keep_non_prot = [c for c in non_protected if df[c].isnull().mean() < 0.5]
+cols_to_keep  = keep_non_prot + protect_existing
+dropped_count = df.shape[1] - len(cols_to_keep)
+df = df[cols_to_keep]
+
+print(f"Protected columns: {protect_existing}")
+print(f"Dropped {dropped_count} high-missing non-protected columns.")
+print(f"Shape after step 3.2: {df.shape}")
+```
+
+### 3.3 Remove Duplicate Postings
+
+We deduplicate on the combination of job title + company + state + posting
+date. This removes re-posted or syndicated listings that represent the same
+position.
+
+```{python}
+dup_subset = [
+    c for c in ["TITLE_RAW", "COMPANY_NAME", "STATE_NAME", "POSTED"]
+    if c in df.columns
+]
+print(f"Deduplication key: {dup_subset}")
+
+before = len(df)
+df.drop_duplicates(subset=dup_subset, keep="first", inplace=True)
+removed = before - len(df)
+
+print(f"Removed {removed:,} duplicate rows ({removed/before*100:.1f}% of pre-dedup total).")
+print(f"Shape after step 3.3: {df.shape}")
+```
+
+### 3.4 Build Unified Salary Column (`SALARY_MID`)
+
+We create a single salary column by taking the midpoint of `SALARY_FROM`
+and `SALARY_TO`. Where the midpoint is unavailable we fall back to the
+`SALARY` column.
+
+> **Important:** Missing salary values are left as `NaN` — we do **not**
+> impute them with the median or mean. All downstream salary analyses
+> should use `.dropna(subset=["SALARY_MID"])` or filter to
+> `df[df["SALARY_MID"].notna()]` to work only with real data, preserving
+> the true salary distribution.
+
+```{python}
+if "SALARY_FROM" in df.columns and "SALARY_TO" in df.columns:
+    df["SALARY_MID"] = df[["SALARY_FROM", "SALARY_TO"]].mean(axis=1)
+    if "SALARY" in df.columns:
+        df["SALARY_MID"] = df["SALARY_MID"].fillna(df["SALARY"])
+    print("Created SALARY_MID = (SALARY_FROM + SALARY_TO) / 2  [fallback: SALARY]")
+elif "SALARY" in df.columns:
+    df["SALARY_MID"] = df["SALARY"]
+    print("Created SALARY_MID from SALARY column.")
+else:
+    print("WARNING: No salary source columns found. Check step 3.2 protect list.")
+
+if "SALARY_MID" in df.columns:
+    n_sal     = df["SALARY_MID"].notna().sum()
+    sal_clean = df[
+        (df["SALARY_MID"] > 10_000) & (df["SALARY_MID"] < 500_000)
+    ]["SALARY_MID"]
+    print(f"\nSalary coverage:  {n_sal:,} postings with data ({n_sal/len(df)*100:.1f}%)")
+    print(f"Plausible range:  ${sal_clean.min():,.0f} – ${sal_clean.max():,.0f}")
+    print(f"Median:           ${sal_clean.median():,.0f}")
+    print(f"Mean:             ${sal_clean.mean():,.0f}")
+```
+
+### 3.5 Fill Categorical Missing Values
+
+Remaining `NaN` values in key categorical columns are replaced with the
+string `"Unknown"` so they appear explicitly in charts and model features
+rather than being silently excluded.
+
+```{python}
+fill_unknown = [
+    "NAICS_2022_6_NAME",    # 6-digit industry (primary industry column)
+    "NAICS_2022_2_NAME",    # 2-digit broad industry
+    "SOC_2021_4_NAME",      # SOC occupation name
+    "REMOTE_TYPE_NAME",     # Remote / Hybrid / On-site
+    "STATE_NAME",           # US state
+    "MIN_EDULEVELS_NAME",   # Minimum education required
+    "LOT_V6_OCCUPATION_NAME",    # Lightcast occupation category (6 groups)
+    "LOT_OCCUPATION_NAME",       # Lightcast occupation (broader)
+    "EMPLOYMENT_TYPE_NAME", # Full-time / Part-time / Contract
+    "LIGHTCAST_SECTORS_NAME",    # Lightcast sector (75% missing — use with caution)
+]
+
+filled = []
+for col in fill_unknown:
+    if col in df.columns:
+        n_filled = df[col].isna().sum()
+        df[col].fillna("Unknown", inplace=True)
+        filled.append(f"  {col:<45s}  ({n_filled:,} values filled)")
+
+print("Filled 'Unknown' in:")
+print("\n".join(filled))
+```
+
+---
+
+## 4. Column Reference Guide
+
+A quick-reference map of the most useful columns for downstream analysis.
+
+```{python}
+def find_col(df, candidates):
+    """Return first matching column name (exact, then fuzzy)."""
+    for c in candidates:
+        if c in df.columns:
+            return c
+    for cand in candidates:
+        for col in df.columns:
+            if cand.upper() in col.upper():
+                return col
+    return None
+
+# ── Key column aliases ─────────────────────────────────────────────────────
+COL_TITLE      = find_col(df, ["TITLE_RAW", "TITLE_NAME"])
+# ↑ Use TITLE_RAW for human-readable job titles.
+#   TITLE is a hash ID and should NOT be used for display or analysis.
+
+COL_OCCUPATION = find_col(df, ["LOT_V6_OCCUPATION_NAME", "LOT_OCCUPATION_NAME",
+                                "SOC_2021_4_NAME"])
+COL_INDUSTRY   = find_col(df, ["NAICS_2022_6_NAME", "NAICS_2022_4_NAME",
+                                "NAICS_2022_2_NAME"])
+COL_IND_BROAD  = find_col(df, ["NAICS_2022_2_NAME"])
+COL_STATE      = find_col(df, ["STATE_NAME", "STATE"])
+COL_REMOTE     = find_col(df, ["REMOTE_TYPE_NAME", "REMOTE_TYPE"])
+COL_SALARY     = find_col(df, ["SALARY_MID", "SALARY", "SALARY_FROM"])
+COL_COMPANY    = find_col(df, ["COMPANY_NAME", "COMPANY_RAW"])
+# ↑ Use COMPANY_NAME/COMPANY_RAW for readable company names.
+#   COMPANY is a numeric ID and is NOT human-readable.
+
+COL_SKILLS     = find_col(df, ["SKILLS_NAME", "SKILL_NAME", "SKILLS"])
+COL_SOC        = find_col(df, ["SOC_2021_4_NAME", "SOC_2021_5_NAME"])
+COL_POSTED     = find_col(df, ["POSTED", "POSTING_DATE"])
+COL_EDU        = find_col(df, ["MIN_EDULEVELS_NAME", "EDUCATION_LEVELS_NAME"])
+# ↑ Prefer MIN_EDULEVELS_NAME (near-complete).
+#   MAX_EDULEVELS_NAME is 77% missing and should be used with caution.
+
+COL_EXP        = find_col(df, ["MIN_YEARS_EXPERIENCE", "MAX_YEARS_EXPERIENCE"])
+COL_EMPTYPE    = find_col(df, ["EMPLOYMENT_TYPE_NAME"])
+
+# ── Print resolved mapping ─────────────────────────────────────────────────
+print(f"{'Variable':<18s}  {'Resolved Column':<45s}  Coverage")
+print("-" * 85)
+for name, col in [
+    ("COL_TITLE",      COL_TITLE),
+    ("COL_OCCUPATION", COL_OCCUPATION),
+    ("COL_INDUSTRY",   COL_INDUSTRY),
+    ("COL_IND_BROAD",  COL_IND_BROAD),
+    ("COL_STATE",      COL_STATE),
+    ("COL_REMOTE",     COL_REMOTE),
+    ("COL_SALARY",     COL_SALARY),
+    ("COL_COMPANY",    COL_COMPANY),
+    ("COL_SKILLS",     COL_SKILLS),
+    ("COL_SOC",        COL_SOC),
+    ("COL_POSTED",     COL_POSTED),
+    ("COL_EDU",        COL_EDU),
+    ("COL_EXP",        COL_EXP),
+    ("COL_EMPTYPE",    COL_EMPTYPE),
+]:
+    if col and col in df.columns:
+        n    = df[col].notna().sum()
+        pct  = n / len(df) * 100
+        cov  = f"{n:,}  ({pct:.1f}%)"
+        status = ""
+    else:
+        cov    = "N/A"
+        status = "  ← NOT FOUND"
+    print(f"  {name:<16s}  {str(col):<45s}  {cov}{status}")
+```
+
+---
+
+## 5. Cleaned Dataset Summary
+
+```{python}
+print("=" * 60)
+print("  CLEANED DATASET SUMMARY")
+print("=" * 60)
+print(f"  Rows:     {df.shape[0]:,}")
+print(f"  Columns:  {df.shape[1]}")
+
+print(f"\n  Missing values remaining:")
+remaining_miss = df.isnull().sum()
+remaining_miss = remaining_miss[remaining_miss > 0].sort_values(ascending=False)
+for col, cnt in remaining_miss.items():
+    print(f"    {col:<45s}  {cnt:,}  ({cnt/len(df)*100:.1f}%)")
+
+if COL_SALARY and COL_SALARY in df.columns:
+    sal = df[(df[COL_SALARY] > 10_000) & (df[COL_SALARY] < 500_000)][COL_SALARY]
+    print(f"\n  Salary (SALARY_MID, valid range $10k–$500k):")
+    print(f"    Count:   {len(sal):,}")
+    print(f"    Median:  ${sal.median():,.0f}")
+    print(f"    Mean:    ${sal.mean():,.0f}")
+    print(f"    Std:     ${sal.std():,.0f}")
+    print(f"    10th:    ${sal.quantile(0.1):,.0f}")
+    print(f"    90th:    ${sal.quantile(0.9):,.0f}")
+```
+
+---
+
+## Appendix: Full Column List (Cleaned)
+
+```{python}
+print(f"All {df.shape[1]} columns in cleaned dataset:\n")
+for i, c in enumerate(df.columns, 1):
+    n   = df[c].notna().sum()
+    pct = n / len(df) * 100
+    print(f"  {i:3d}.  {c:<50s}  [{df[c].dtype}]  {pct:.0f}% non-null")
+```
