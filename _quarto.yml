@@ -13,7 +13,7 @@ project:
     - career_plan3.qmd
     - career_plan4.qmd
 website:
-  title: "About me - Job Market Analysis 2024"
+  title: "Job Market Analysis 2024"
   navbar:
     left:
       - href: index.qmd
@@ -35,9 +35,9 @@ website:
           - text: "AI/ML Core Deep Dive"
             href: career_plan2.qmd
           - text: "Temporal & Industry Trends"
-            href: career_plan3.qmd 
+            href: career_plan3.qmd
           - text: "Key Findings & Summary"
-            href: career_plan4.qmd                       
+            href: career_plan4.qmd
           
 format:
   html:
