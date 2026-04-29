@@ -29,15 +29,18 @@ on RAG systems with SEC 10-K filings, and big data salary analytics on AWS EC2.
 ## Experience
 
 **Kuaishou** — Data Analyst  
-Driver onboarding analysis project.
+Analyzed platform traffic and revenue distribution, designed new monetization metrics, and optimized traffic allocation logic. 
+Used SQL to perform a tiered analysis of how key factors impact the repurchase rate. Designed A/B tests and produced comprehensive experimental analysis reports. 
+Independently led the Q2 platform performance review report. Leveraged SQL and BI dashboards to conduct multi-layered data analysis and visualization across dimensions
 
 **Poizon** — Data Analyst  
-Built data warehouse and visualization dashboard identifying Medicare Advantage 
-benefit enrollment opportunity gaps using CMS, Medicaid, SNAP, and Census datasets.
+Contributed to three major strategic projects on pricing model optimization, fixed-price mechanisms, and traffic algorithm strategy.
+Conducted in-depth research on merchant acquisition, livestreaming development, and content-based traffic distribution across e-commerce models. 
 
 ## Education
 
 **Boston University** — M.S. Applied Business Analytics
+
 **The Chinese University of Hong Kong, Shen Zhen** - B.B.A Finance
 
 ## Skills
