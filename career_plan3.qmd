@@ -1,0 +1,431 @@
+---
+title: "NLP Analysis "
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    embed-resources: true
+execute:
+  echo: false
+  eval: true
+---
+
+```{python}
+import subprocess, sys
+for pkg in ["gdown", "plotly", "kaleido"]:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from collections import Counter
+import warnings, gdown, os
+warnings.filterwarnings("ignore")
+pd.set_option("display.max_columns", 60)
+#print("Ready.")
+```
+
+```{python}
+# ── Download & clean (self-contained) ────────────────────────────────────────
+RAW = "lightcast_2024.csv"
+if not os.path.exists(RAW):
+    gdown.download("https://drive.google.com/uc?id=1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ",
+                   RAW, quiet=False)
+
+df_raw = pd.read_csv(RAW, low_memory=False)
+#print(f"Raw: {df_raw.shape}")
+
+df = df_raw.copy()
+
+# 1. Drop internal tracking columns
+drop1 = ["ID","URL","ACTIVE_URLS","ACTIVE_SOURCES_INFO","DUPLICATES",
+         "LAST_UPDATED_TIMESTAMP","LAST_UPDATED_DATE",
+         "NAICS2","NAICS3","NAICS4","NAICS5","NAICS6",
+         "SOC_2","SOC_2_NAME","SOC_3","SOC_3_NAME","SOC_5","SOC_5_NAME"]
+df.drop(columns=[c for c in drop1 if c in df.columns], inplace=True)
+
+# 2. Drop columns >50% missing — protect salary & education columns
+PROTECT = ["SALARY","SALARY_FROM","SALARY_TO","ORIGINAL_PAY_PERIOD",
+           "MIN_YEARS_EXPERIENCE","MAX_YEARS_EXPERIENCE",
+           "MIN_EDULEVELS","MIN_EDULEVELS_NAME",
+           "MAX_EDULEVELS","MAX_EDULEVELS_NAME",
+           "LIGHTCAST_SECTORS","LIGHTCAST_SECTORS_NAME"]
+prot = [c for c in PROTECT if c in df.columns]
+nonp = [c for c in df.columns if c not in prot]
+keep = [c for c in nonp if df[c].isnull().mean() < 0.5] + prot
+df   = df[keep]
+
+# 3. Deduplicate on key identity columns
+dup_key = [c for c in ["TITLE_RAW","COMPANY_NAME","STATE_NAME","POSTED"] if c in df.columns]
+df.drop_duplicates(subset=dup_key, keep="first", inplace=True)
+
+# 4. Compute midpoint salary
+if "SALARY_FROM" in df.columns and "SALARY_TO" in df.columns:
+    df["SALARY_MID"] = df[["SALARY_FROM","SALARY_TO"]].mean(axis=1)
+    if "SALARY" in df.columns:
+        df["SALARY_MID"] = df["SALARY_MID"].fillna(df["SALARY"])
+elif "SALARY" in df.columns:
+    df["SALARY_MID"] = df["SALARY"]
+
+# 5. Fill categorical columns
+cat_fill = ["NAICS_2022_6_NAME","NAICS_2022_2_NAME","SOC_2021_4_NAME",
+            "REMOTE_TYPE_NAME","STATE_NAME","MIN_EDULEVELS_NAME",
+            "LOT_V6_OCCUPATION_NAME","LOT_V6_SPECIALIZED_OCCUPATION_NAME",
+            "EMPLOYMENT_TYPE_NAME"]
+for c in cat_fill:
+    if c in df.columns:
+        df[c].fillna("Unknown", inplace=True)
+
+# 6. Date parsing
+df["POSTED_DT"]    = pd.to_datetime(df["POSTED"], errors="coerce")
+df["POSTED_MONTH"] = df["POSTED_DT"].dt.to_period("M").astype(str)
+df["POSTED_WEEK"]  = df["POSTED_DT"].dt.to_period("W").astype(str)
+
+#print(f"Cleaned: {df.shape}")
+#print(f"Date range: {df['POSTED_DT'].min().date()} → {df['POSTED_DT'].max().date()}")
+#print(f"Columns kept: {df.shape[1]}")
+```
+
+
+```{python}
+# ── A1. Build 3-tier classifier ───────────────────────────────────────────────
+
+# Keywords for LOT occupation label matching
+AI_OCC_KW  = ["machine learning","data scien","ai ","artificial intelligence",
+               "deep learning","nlp","computer vision","research scientist",
+               "mlops","generative"]
+ADV_OCC_KW = ["data engineer","analytics engineer","quantitative",
+               "statistician","modeler","architect","computer systems"]
+
+# Strict title keywords (unambiguous AI/ML only)
+AI_TITLE_STRICT = [
+    "machine learning engineer","ml engineer","data scientist",
+    "ai engineer","artificial intelligence","deep learning",
+    "nlp engineer","computer vision","research scientist",
+    "generative ai","gen ai","llm","mlops","ml ops",
+    "applied scientist","ai architect","ml architect",
+]
+ADV_TITLE_KW = [
+    "data engineer","analytics engineer","platform engineer",
+    "data architect","solutions architect","enterprise architect",
+    "data modeler","quantitative analyst","statistician",
+    "data infrastructure","data platform",
+]
+
+# Strict ML tool skills (only specific frameworks, not generic data skills)
+AI_SKILLS_STRICT = [
+    "tensorflow","pytorch","keras","scikit-learn","sklearn",
+    "hugging face","langchain","llm","transformers","bert",
+    "mlflow","kubeflow","sagemaker","vertex ai","azure machine learning",
+    "spark ml","xgboost","lightgbm","catboost",
+    "computer vision","natural language processing","reinforcement learning",
+    "neural network","deep learning",
+]
+
+def classify_by_occ(occ):
+    t = str(occ).lower()
+    if any(k in t for k in AI_OCC_KW):  return "AI/ML Core"
+    if any(k in t for k in ADV_OCC_KW): return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def classify_by_title(title):
+    t = str(title).lower()
+    if any(k in t for k in AI_TITLE_STRICT): return "AI/ML Core"
+    if any(k in t for k in ADV_TITLE_KW):   return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def has_ai_skill(skills_str):
+    s = str(skills_str).lower()
+    return any(k in s for k in AI_SKILLS_STRICT)
+
+# Apply classifiers
+occ_col = next((c for c in ["LOT_V6_SPECIALIZED_OCCUPATION_NAME","LOT_V6_OCCUPATION_NAME"]
+                if c in df.columns), None)
+if occ_col:
+    df["TIER_LOT"] = df[occ_col].apply(classify_by_occ)
+
+if "TITLE_RAW" in df.columns:
+    df["TIER_TITLE"] = df["TITLE_RAW"].apply(classify_by_title)
+
+if "SKILLS_NAME" in df.columns:
+    df["HAS_AI_SKILL"] = df["SKILLS_NAME"].apply(has_ai_skill)
+
+# Combined: LOT primary → title fallback → else Traditional
+def combine_tiers(row):
+    lot   = row.get("TIER_LOT",   "Traditional Analytics / BI")
+    title = row.get("TIER_TITLE", "Traditional Analytics / BI")
+    if lot == "AI/ML Core" or title == "AI/ML Core":         return "AI/ML Core"
+    if lot == "Advanced Analytics / Engineering" or \
+       title == "Advanced Analytics / Engineering":          return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+df["AI_TIER"] = df.apply(combine_tiers, axis=1)
+
+```
+
+```{python}
+# ── A2. Tier distribution — pie + count bar ───────────────────────────────────
+COLOR_MAP = {
+    "AI/ML Core":                      "#1565C0",
+    "Advanced Analytics / Engineering": "#00897B",
+    "Traditional Analytics / BI":       "#78909C",
+}
+
+tier_counts = df["AI_TIER"].value_counts().reset_index()
+tier_counts.columns = ["Tier", "Count"]
+
+
+#fig.update_traces(textinfo="percent+label", textfont_size=13)
+#fig.update_layout(legend_title_text="Tier", height=450)
+#fig.show()
+```
+
+***
+## Section C - Temporal & Industry Trends (Topic 2.5)
+#**Focus:** How is the data/analytics/tech job market evolving across May–September 2024?  
+#Key dimensions: industry growth, occupation trends, emerging/declining titles, skill demand evolution.
+
+```{python}
+# ── C1. Overall posting volume over time ──────────────────────────────────────
+monthly_vol = (df[df["POSTED_MONTH"] != "NaT"]
+               .groupby("POSTED_MONTH").size().reset_index(name="Postings"))
+
+fig = px.bar(
+    monthly_vol, x="POSTED_MONTH", y="Postings",
+    title="Total Monthly Data/Tech Job Posting Volume (2024)",
+    labels={"POSTED_MONTH": "Month", "Postings": "Job Postings"},
+    color_discrete_sequence=["#37474F"],
+    text_auto=True,
+)
+fig.update_layout(height=400)
+fig.show()
+
+print(monthly_vol.to_string(index=False))
+```
+
+```{python}
+# ── C2. Occupation category trends over time ───────────────────────────────────
+occ_col = next((c for c in ["LOT_V6_OCCUPATION_NAME","LOT_OCCUPATION_NAME"] if c in df.columns), None)
+if occ_col:
+    occ_trend = (df[df["POSTED_MONTH"] != "NaT"]
+                 .groupby(["POSTED_MONTH", occ_col])
+                 .size().reset_index(name="Postings"))
+
+    fig = px.line(
+        occ_trend, x="POSTED_MONTH", y="Postings", color=occ_col,
+        title="Job Postings by Occupation Category Over Time",
+        markers=True,
+        labels={"POSTED_MONTH": "Month", occ_col: "Occupation"},
+    )
+    fig.update_xaxes(tickangle=-30)
+    fig.update_layout(height=480)
+    fig.show()
+
+    # Growth rate: first month vs. last month
+    months = sorted(occ_trend["POSTED_MONTH"].unique())
+    if len(months) >= 2:
+        first  = occ_trend[occ_trend["POSTED_MONTH"] == months[0]].set_index(occ_col)["Postings"]
+        last   = occ_trend[occ_trend["POSTED_MONTH"] == months[-1]].set_index(occ_col)["Postings"]
+        growth = ((last - first) / first * 100).sort_values(ascending=False)
+        print(f"Occupation posting growth ({months[0]} → {months[-1]}):")
+        print(growth.apply(lambda x: f"{x:+.1f}%").to_string())
+```
+
+```{python}
+# ── C3. Industry posting trends over time (top 8) ─────────────────────────────
+if "NAICS_2022_2_NAME" in df.columns:
+    top_ind = df["NAICS_2022_2_NAME"].value_counts().head(8).index
+    ind_trend = (df[df["NAICS_2022_2_NAME"].isin(top_ind) & (df["POSTED_MONTH"] != "NaT")]
+                 .groupby(["POSTED_MONTH","NAICS_2022_2_NAME"])
+                 .size().reset_index(name="Postings"))
+
+    fig = px.line(
+        ind_trend, x="POSTED_MONTH", y="Postings", color="NAICS_2022_2_NAME",
+        title="Job Postings by Industry Over Time (Top 8 Industries)",
+        markers=True,
+        labels={"POSTED_MONTH": "Month", "NAICS_2022_2_NAME": "Industry"},
+    )
+    fig.update_xaxes(tickangle=-30)
+    fig.update_layout(height=500)
+    fig.show()
+
+    months = sorted(ind_trend["POSTED_MONTH"].unique())
+    if len(months) >= 2:
+        first  = ind_trend[ind_trend["POSTED_MONTH"] == months[0]].set_index("NAICS_2022_2_NAME")["Postings"]
+        last   = ind_trend[ind_trend["POSTED_MONTH"] == months[-1]].set_index("NAICS_2022_2_NAME")["Postings"]
+        growth = ((last - first) / first * 100).sort_values(ascending=False)
+        print(f"Industry posting growth ({months[0]} → {months[-1]}):")
+        print(growth.apply(lambda x: f"{x:+.1f}%").to_string())
+```
+
+```{python}
+# ── C4. Emerging vs. declining job titles (early vs. late 2024) ───────────────
+if "TITLE_RAW" in df.columns and "POSTED_DT" in df.columns:
+    mid_date  = df["POSTED_DT"].dropna().median()
+    df_early  = df[df["POSTED_DT"] < mid_date]
+    df_late   = df[df["POSTED_DT"] >= mid_date]
+
+    early_c = df_early["TITLE_RAW"].value_counts()
+    late_c  = df_late["TITLE_RAW"].value_counts()
+
+    common = [t for t in early_c.index.intersection(late_c.index) if early_c[t] >= 20]
+    tg = pd.DataFrame({"Early": early_c[common], "Late": late_c[common]}).dropna()
+    tg["Growth_pct"] = (tg["Late"] - tg["Early"]) / tg["Early"] * 100
+
+    print(f"Period split: Early < {mid_date.date()} | Late >= {mid_date.date()}")
+    print(f"Titles with ≥20 early postings: {len(tg)}")
+
+    top_growing = tg.sort_values("Growth_pct", ascending=False).head(20).reset_index()
+    top_growing.columns = ["Title","Early","Late","Growth_pct"]
+
+    fig = px.bar(
+        top_growing, x="Growth_pct", y="Title", orientation="h",
+        title=f"Top 20 Fastest-Growing Job Titles (Early → Late 2024)",
+        labels={"Growth_pct": "Growth (%)", "Title": ""},
+        color="Growth_pct", color_continuous_scale="Greens",
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=560)
+    fig.show()
+
+    top_declining = tg.sort_values("Growth_pct").head(20).reset_index()
+    top_declining.columns = ["Title","Early","Late","Growth_pct"]
+
+    fig2 = px.bar(
+        top_declining, x="Growth_pct", y="Title", orientation="h",
+        title=f"Top 20 Fastest-Declining Job Titles (Early → Late 2024)",
+        labels={"Growth_pct": "Growth (%)", "Title": ""},
+        color="Growth_pct", color_continuous_scale="Reds_r",
+    )
+    fig2.update_layout(yaxis={"categoryorder": "total ascending"}, height=560)
+    fig2.show()
+```
+
+```{python}
+# ── C5. Skill group demand evolution ──────────────────────────────────────────
+if "SKILLS_NAME" in df.columns:
+    SKILL_GROUPS = {
+        "AI/ML Tools":     ["tensorflow","pytorch","keras","scikit-learn",
+                            "hugging face","langchain","mlflow","sagemaker"],
+        "Traditional BI":  ["tableau","power bi","excel","qlik","cognos",
+                            "crystal reports","microstrategy"],
+        "Programming":     ["python","r programming","scala","julia"],
+        "Cloud Platforms": ["aws","azure","google cloud","databricks","snowflake"],
+        "Core Data Skills":["sql","data analysis","data visualization","statistics"],
+    }
+
+    months = sorted(df["POSTED_MONTH"].dropna().astype(str).unique())
+    records = []
+    for m in months:
+        mdf = df[df["POSTED_MONTH"] == m]
+        for grp, kws in SKILL_GROUPS.items():
+            share = mdf["SKILLS_NAME"].dropna().apply(
+                lambda s: any(k in str(s).lower() for k in kws)
+            ).mean() * 100
+            records.append({"Month": m, "Skill Group": grp, "Share": round(share, 2)})
+
+    skill_trend = pd.DataFrame(records)
+    fig = px.line(
+        skill_trend, x="Month", y="Share", color="Skill Group",
+        title="Skill Group Demand Over Time (% of Postings Mentioning)",
+        markers=True,
+        labels={"Share": "% of Postings", "Month": ""},
+    )
+    fig.update_xaxes(tickangle=-30)
+    fig.update_layout(height=460)
+    fig.show()
+```
+
+```{python}
+# ── C6. AI/ML tool penetration by industry ────────────────────────────────────
+if "SKILLS_NAME" in df.columns and "NAICS_2022_2_NAME" in df.columns:
+    AI_TOOLS = ["tensorflow","pytorch","keras","scikit-learn",
+                "hugging face","langchain","mlflow","sagemaker"]
+
+    df["HAS_AI_TOOL"] = df["SKILLS_NAME"].apply(
+        lambda s: any(k in str(s).lower() for k in AI_TOOLS)
+    )
+
+    ind_ai = (df.groupby("NAICS_2022_2_NAME")["HAS_AI_TOOL"]
+              .agg(AI_pct="mean", Count="count")
+              .reset_index()
+              .query("Count >= 100"))
+    ind_ai["AI_pct"] = (ind_ai["AI_pct"] * 100).round(2)
+    ind_ai = ind_ai.sort_values("AI_pct", ascending=False)
+
+    fig = px.bar(
+        ind_ai, x="AI_pct", y="NAICS_2022_2_NAME", orientation="h",
+        title="% of Postings Requiring AI/ML Tools by Industry",
+        labels={"AI_pct": "% with AI/ML Tool Requirement",
+                "NAICS_2022_2_NAME": "Industry"},
+        color="AI_pct", color_continuous_scale="Blues",
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=620)
+    fig.show()
+
+    print("Industries with highest AI/ML tool requirement:")
+    print(ind_ai[["NAICS_2022_2_NAME","AI_pct","Count"]].head(10).to_string(index=False))
+```
+
+```{python}
+# ── C7. Median salary trend over time ─────────────────────────────────────────
+if "SALARY_MID" in df.columns:
+    sal_trend = (df[(df["SALARY_MID"] > 10_000) & (df["SALARY_MID"] < 500_000)
+                    & (df["POSTED_MONTH"] != "NaT")]
+                 .groupby("POSTED_MONTH")["SALARY_MID"]
+                 .agg(Median="median", Mean="mean", Count="count")
+                 .reset_index())
+
+    fig = px.line(
+        sal_trend, x="POSTED_MONTH", y="Median",
+        title="Median Salary Over Time — Data/Tech Jobs (2024)",
+        markers=True,
+        labels={"POSTED_MONTH": "Month", "Median": "Median Annual Salary ($)"},
+        color_discrete_sequence=["#37474F"],
+    )
+    fig.update_xaxes(tickangle=-30)
+    fig.update_layout(height=400)
+    fig.show()
+
+    # Also: salary by tier over time
+    if "AI_TIER" in df.columns:
+        sal_tier_trend = (df[(df["SALARY_MID"] > 10_000) & (df["SALARY_MID"] < 500_000)
+                             & (df["POSTED_MONTH"] != "NaT")]
+                          .groupby(["POSTED_MONTH","AI_TIER"])["SALARY_MID"]
+                          .median().reset_index(name="Median_Salary"))
+
+        fig2 = px.line(
+            sal_tier_trend, x="POSTED_MONTH", y="Median_Salary", color="AI_TIER",
+            title="Median Salary Over Time by AI Tier",
+            markers=True,
+            labels={"POSTED_MONTH": "Month", "Median_Salary": "Median Salary ($)",
+                    "AI_TIER": "Tier"},
+            color_discrete_map=COLOR_MAP,
+        )
+        fig2.update_xaxes(tickangle=-30)
+        fig2.update_layout(height=420)
+        fig2.show()
+
+    print(sal_trend.to_string(index=False))
+```
+
+```{python}
+# ── C8. Posting volume trend by AI tier (combined view) ───────────────────────
+if "AI_TIER" in df.columns:
+    tier_trend = (df[df["POSTED_MONTH"] != "NaT"]
+                  .groupby(["POSTED_MONTH","AI_TIER"])
+                  .size().reset_index(name="Postings"))
+
+    fig = px.line(
+        tier_trend, x="POSTED_MONTH", y="Postings", color="AI_TIER",
+        title="Posting Volume Trend by AI Tier (2024)",
+        markers=True,
+        color_discrete_map=COLOR_MAP,
+        labels={"POSTED_MONTH": "Month", "AI_TIER": "Tier"},
+    )
+    fig.update_xaxes(tickangle=-30)
+    fig.update_layout(height=440)
+    fig.show()
+```
