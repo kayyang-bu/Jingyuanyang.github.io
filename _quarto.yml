@@ -3,6 +3,7 @@ project:
   output-dir: docs
   render:
     - index2.qmd
+    - about.qmd
     - data_cleaning.qmd
     - eda.qmd
     - skill_gap_analysis.qmd
