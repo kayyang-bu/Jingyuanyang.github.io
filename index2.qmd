@@ -1,0 +1,70 @@
+---
+title: "AI Careers and Industry Trends:"
+subtitle: "A Data-Driven Analysis of the 2024 Job Market"
+author: "GROUP IV"
+date: today
+bibliography: references.bib
+format:
+  html:
+    toc: true
+    number-sections: true
+---
+
+
+## AI vs. Non-AI Careers
+
+![](./figures/AI_vs_Human.png)
+
+### Introduction
+
+Artificial intelligence has moved from research labs into mainstream industries, sparking debate over whether it creates or destroys jobs [@briggs2023]. While AI is automating certain tasks, it is simultaneously generating entirely new occupational categories — from Prompt Engineers to AI Ethicists — that did not exist a decade ago [@mit2024]. This section examines how AI-driven career growth compares to job displacement, how traditional roles are being reshaped, and what new occupations are emerging as a direct result of AI advancement.
+
+### Research Rationale
+
+This analysis uses the Lightcast 2024 job postings dataset [@lightcast2024] to empirically
+examine how AI is reshaping the labor market across industries. While much of the existing
+discourse on AI and employment relies on macroeconomic projections, this study takes a
+data-driven approach — analyzing real employer demand signals to identify which roles are
+growing, which are declining, and how job requirements differ between AI-related and traditional occupations. By examining actual job titles, required skills, and posting volumes across sectors, this analysis aims to move beyond speculation and provide concrete evidence of how AI istransforming hiring in 2024.
+
+### Literature Review
+
+Goldman Sachs (2023) estimated that generative AI could expose roughly 300 million full-time
+equivalent jobs globally to automation, while projecting net positive employment outcomes over time — noting that approximately 60% of current U.S. workers hold jobs that did not exist in 1940 [@briggs2023]. The IMF (2024) found that about 40% of jobs globally face meaningful AI exposure, rising to 60% in high-income economies, stressing that exposure does not always meandisplacement [@imf2024].
+
+The World Economic Forum's Future of Jobs Report 2025 projected 92 million roles displaced by
+2030 alongside 170 million new roles created — a net addition of 78 million jobs [@wef2025].
+The ITIF (2025) found that in 2024 alone, AI-related job creation substantially outpaced
+displacement, with data center expansion generating over 110,000 construction jobs [@itif2025]. Federal Reserve Bank of St. Louis researchers (2025) detected early correlations between AI exposure and rising unemployment in certain occupational categories [@stlouis2025].
+
+New job titles are proliferating rapidly. The Prompt Engineer role emerged in 2023 offering
+high six-figure salaries [@mit2024], while AI Ethicist, AI Product Manager, and Machine Learning Operations Specialist roles are now mainstream, with projected growth of 29–45% through the
+late 2020s [@atera2026]. National University (2026) reported that 14% of workers already report AI-related displacement, while entry-level software engineering job postings grew 47% between October 2023 and November 2024 [@nationaluniversity2026], illustrating AI's dual nature as both disruptor and creator.
+
+
+
+
+## Business Analytics, Data Science, and Machine Learning Trends
+
+![](./figures/website_image.png)
+
+### Introduction
+
+Business analytics, data science, and machine learning have become among the most consequential professional fields of the twenty-first century. As organizations across every sector compete to extract value from growing volumes of data, demand for skilled analysts and data scientists has surged [@ieee2026]. The integration of generative AI has further accelerated this transformation — raising the technical bar for practitioners while simultaneously automating routine analytical tasks [@gartner2024]. This section examines the most in-demand skills, how job requirements evolved in 2024, which industries are hiring most aggressively, and what the career outlook holds for professionals in these fields.
+
+### Research Rationale
+
+This analysis leverages the Lightcast 2024 job postings dataset [@lightcast2024] to investigate current employer demand for business analytics, data science, and machine learning professionals.
+Rather than relying solely on projected employment figures, this study examines real job postings to identify which technical skills — such as Python, SQL, NLP, and cloud platforms — appear most frequently, which industries are actively hiring data professionals, and how compensation varies by role, location, and skill requirements. This approach provides a ground-level view of the 2024 job market that complements broader labor market forecasts from sources such as the BLS
+[@bls2025data] and WEF [@wef2023].
+
+### Literature Review
+
+The BLS Employment Projections 2024–2034 provide the clearest quantitative baseline. Data
+scientist employment is projected to grow from 245,900 to 328,300 positions — a 33.5% increase driven by AI model development and enterprise application integration [@bls2025data]. Operations research analysts are projected at 21% growth, management analysts at 9%, and market research analysts at 7% [@bls2025ops; @bls2025mgmt; @bls2025mkt].
+
+The AnalytixLabs Data Science Skills Survey (2024), drawing on 100+ Fortune 500 hiring managers, found data engineering was the most-recruited function (76.3%), followed by data scientist (73.7%) and machine learning engineer (57.9%) roles [@analytixlabs2024]. A 365 Data Science analysis of 1,000 job postings found that NLP skill demand surged from 5% in 2023 to 19% in 2024, and machine learning was mentioned in over 69% of postings [@datascience365_2024].
+
+The WEF Future of Jobs Report 2023 projected demand for AI and machine learning specialists to increase 40% by 2027 [@wef2023]. Gartner projected that over 50% of data science tasks would be automated by 2025 through AutoML tools [@gartner2024], but research consistently finds these tools augment rather than replace skilled professionals. Coursera (2025) noted that business analyst demand is projected to generate approximately 98,100 job openings annually through 2034, with median wages ranging from $78,400 to over $101,000 [@coursera2025].
+
+## References
