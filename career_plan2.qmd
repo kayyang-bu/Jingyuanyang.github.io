@@ -1,0 +1,354 @@
+---
+title: "NLP Analysis"
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    embed-resources: true
+execute:
+  echo: false
+  eval: true
+---
+
+
+```{python}
+import subprocess, sys
+for pkg in ["gdown", "plotly", "kaleido"]:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from collections import Counter
+import warnings, gdown, os
+warnings.filterwarnings("ignore")
+pd.set_option("display.max_columns", 60)
+#print("Ready.")
+```
+
+```{python}
+# ── Download & clean (self-contained) ────────────────────────────────────────
+RAW = "lightcast_2024.csv"
+if not os.path.exists(RAW):
+    gdown.download("https://drive.google.com/uc?id=1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ",
+                   RAW, quiet=False)
+
+df_raw = pd.read_csv(RAW, low_memory=False)
+#print(f"Raw: {df_raw.shape}")
+
+df = df_raw.copy()
+
+# 1. Drop internal tracking columns
+drop1 = ["ID","URL","ACTIVE_URLS","ACTIVE_SOURCES_INFO","DUPLICATES",
+         "LAST_UPDATED_TIMESTAMP","LAST_UPDATED_DATE",
+         "NAICS2","NAICS3","NAICS4","NAICS5","NAICS6",
+         "SOC_2","SOC_2_NAME","SOC_3","SOC_3_NAME","SOC_5","SOC_5_NAME"]
+df.drop(columns=[c for c in drop1 if c in df.columns], inplace=True)
+
+# 2. Drop columns >50% missing — protect salary & education columns
+PROTECT = ["SALARY","SALARY_FROM","SALARY_TO","ORIGINAL_PAY_PERIOD",
+           "MIN_YEARS_EXPERIENCE","MAX_YEARS_EXPERIENCE",
+           "MIN_EDULEVELS","MIN_EDULEVELS_NAME",
+           "MAX_EDULEVELS","MAX_EDULEVELS_NAME",
+           "LIGHTCAST_SECTORS","LIGHTCAST_SECTORS_NAME"]
+prot = [c for c in PROTECT if c in df.columns]
+nonp = [c for c in df.columns if c not in prot]
+keep = [c for c in nonp if df[c].isnull().mean() < 0.5] + prot
+df   = df[keep]
+
+# 3. Deduplicate on key identity columns
+dup_key = [c for c in ["TITLE_RAW","COMPANY_NAME","STATE_NAME","POSTED"] if c in df.columns]
+df.drop_duplicates(subset=dup_key, keep="first", inplace=True)
+
+# 4. Compute midpoint salary
+if "SALARY_FROM" in df.columns and "SALARY_TO" in df.columns:
+    df["SALARY_MID"] = df[["SALARY_FROM","SALARY_TO"]].mean(axis=1)
+    if "SALARY" in df.columns:
+        df["SALARY_MID"] = df["SALARY_MID"].fillna(df["SALARY"])
+elif "SALARY" in df.columns:
+    df["SALARY_MID"] = df["SALARY"]
+
+# 5. Fill categorical columns
+cat_fill = ["NAICS_2022_6_NAME","NAICS_2022_2_NAME","SOC_2021_4_NAME",
+            "REMOTE_TYPE_NAME","STATE_NAME","MIN_EDULEVELS_NAME",
+            "LOT_V6_OCCUPATION_NAME","LOT_V6_SPECIALIZED_OCCUPATION_NAME",
+            "EMPLOYMENT_TYPE_NAME"]
+for c in cat_fill:
+    if c in df.columns:
+        df[c].fillna("Unknown", inplace=True)
+
+# 6. Date parsing
+df["POSTED_DT"]    = pd.to_datetime(df["POSTED"], errors="coerce")
+df["POSTED_MONTH"] = df["POSTED_DT"].dt.to_period("M").astype(str)
+df["POSTED_WEEK"]  = df["POSTED_DT"].dt.to_period("W").astype(str)
+
+#print(f"Cleaned: {df.shape}")
+#print(f"Date range: {df['POSTED_DT'].min().date()} → {df['POSTED_DT'].max().date()}")
+#print(f"Columns kept: {df.shape[1]}")
+```
+
+
+```{python}
+# ── A1. Build 3-tier classifier ───────────────────────────────────────────────
+
+# Keywords for LOT occupation label matching
+AI_OCC_KW  = ["machine learning","data scien","ai ","artificial intelligence",
+               "deep learning","nlp","computer vision","research scientist",
+               "mlops","generative"]
+ADV_OCC_KW = ["data engineer","analytics engineer","quantitative",
+               "statistician","modeler","architect","computer systems"]
+
+# Strict title keywords (unambiguous AI/ML only)
+AI_TITLE_STRICT = [
+    "machine learning engineer","ml engineer","data scientist",
+    "ai engineer","artificial intelligence","deep learning",
+    "nlp engineer","computer vision","research scientist",
+    "generative ai","gen ai","llm","mlops","ml ops",
+    "applied scientist","ai architect","ml architect",
+]
+ADV_TITLE_KW = [
+    "data engineer","analytics engineer","platform engineer",
+    "data architect","solutions architect","enterprise architect",
+    "data modeler","quantitative analyst","statistician",
+    "data infrastructure","data platform",
+]
+
+# Strict ML tool skills (only specific frameworks, not generic data skills)
+AI_SKILLS_STRICT = [
+    "tensorflow","pytorch","keras","scikit-learn","sklearn",
+    "hugging face","langchain","llm","transformers","bert",
+    "mlflow","kubeflow","sagemaker","vertex ai","azure machine learning",
+    "spark ml","xgboost","lightgbm","catboost",
+    "computer vision","natural language processing","reinforcement learning",
+    "neural network","deep learning",
+]
+
+def classify_by_occ(occ):
+    t = str(occ).lower()
+    if any(k in t for k in AI_OCC_KW):  return "AI/ML Core"
+    if any(k in t for k in ADV_OCC_KW): return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def classify_by_title(title):
+    t = str(title).lower()
+    if any(k in t for k in AI_TITLE_STRICT): return "AI/ML Core"
+    if any(k in t for k in ADV_TITLE_KW):   return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def has_ai_skill(skills_str):
+    s = str(skills_str).lower()
+    return any(k in s for k in AI_SKILLS_STRICT)
+
+# Apply classifiers
+occ_col = next((c for c in ["LOT_V6_SPECIALIZED_OCCUPATION_NAME","LOT_V6_OCCUPATION_NAME"]
+                if c in df.columns), None)
+if occ_col:
+    df["TIER_LOT"] = df[occ_col].apply(classify_by_occ)
+
+if "TITLE_RAW" in df.columns:
+    df["TIER_TITLE"] = df["TITLE_RAW"].apply(classify_by_title)
+
+if "SKILLS_NAME" in df.columns:
+    df["HAS_AI_SKILL"] = df["SKILLS_NAME"].apply(has_ai_skill)
+
+# Combined: LOT primary → title fallback → else Traditional
+def combine_tiers(row):
+    lot   = row.get("TIER_LOT",   "Traditional Analytics / BI")
+    title = row.get("TIER_TITLE", "Traditional Analytics / BI")
+    if lot == "AI/ML Core" or title == "AI/ML Core":         return "AI/ML Core"
+    if lot == "Advanced Analytics / Engineering" or \
+       title == "Advanced Analytics / Engineering":          return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+df["AI_TIER"] = df.apply(combine_tiers, axis=1)
+
+
+```
+
+***
+## Section B - AI/ML Core Deep Dive
+#True AI/ML Core jobs represent only ~0.4% of data/tech postings.  
+#This section examines **where they are, whether they're growing, and which industries host them.**
+
+```{python}
+# ── B0. Subset: AI/ML Core jobs ───────────────────────────────────────────────
+ai_core = df[df["AI_TIER"] == "AI/ML Core"].copy()
+print(f"AI/ML Core jobs: {len(ai_core):,}")
+print(f"Share of total:  {len(ai_core)/len(df)*100:.2f}%")
+print(f"\nDate range: {ai_core['POSTED_DT'].min().date()} → {ai_core['POSTED_DT'].max().date()}")
+
+# How were they classified?
+if "TIER_LOT" in ai_core.columns and "TIER_TITLE" in ai_core.columns:
+    lot_flag   = (ai_core["TIER_LOT"]   == "AI/ML Core").sum()
+    title_flag = (ai_core["TIER_TITLE"] == "AI/ML Core").sum()
+    print(f"\nFlagged by LOT taxonomy:    {lot_flag:,}")
+    print(f"Flagged by title keywords:  {title_flag:,}")
+```
+
+```{python}
+# ── B1. AI/ML Core — monthly posting trend ────────────────────────────────────
+ai_monthly = (ai_core[ai_core["POSTED_MONTH"] != "NaT"]
+              .groupby("POSTED_MONTH").size().reset_index(name="Postings"))
+all_monthly = (df[df["POSTED_MONTH"] != "NaT"]
+               .groupby("POSTED_MONTH").size().reset_index(name="Total"))
+trend = ai_monthly.merge(all_monthly, on="POSTED_MONTH")
+trend["AI_Share_pct"] = trend["Postings"] / trend["Total"] * 100
+
+fig = px.bar(
+    trend, x="POSTED_MONTH", y="Postings",
+    title="AI/ML Core Job Postings — Monthly Volume (2024)",
+    labels={"POSTED_MONTH": "Month", "Postings": "Posting Count"},
+    color_discrete_sequence=["#1565C0"],
+    text_auto=True,
+)
+fig.update_layout(height=420)
+fig.show()
+
+fig2 = px.line(
+    trend, x="POSTED_MONTH", y="AI_Share_pct",
+    title="AI/ML Core Share of All Postings (%) — Monthly",
+    labels={"POSTED_MONTH": "Month", "AI_Share_pct": "AI/ML Core Share (%)"},
+    markers=True,
+    color_discrete_sequence=["#1565C0"],
+)
+fig2.update_layout(height=380)
+fig2.show()
+
+print(trend[["POSTED_MONTH","Postings","Total","AI_Share_pct"]].to_string(index=False))
+```
+
+```{python}
+# ── B2. AI/ML Core — state distribution ───────────────────────────────────────
+if "STATE_NAME" in ai_core.columns:
+    state_counts = ai_core["STATE_NAME"].value_counts().head(20).reset_index()
+    state_counts.columns = ["State", "Count"]
+
+    fig = px.bar(
+        state_counts, x="Count", y="State", orientation="h",
+        title="Top 20 States — AI/ML Core Job Postings",
+        color="Count", color_continuous_scale="Blues",
+        labels={"Count": "Job Postings", "State": ""},
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=540)
+    fig.show()
+
+    # Share vs all jobs per state
+    all_state = df["STATE_NAME"].value_counts().rename("Total")
+    ai_state  = ai_core["STATE_NAME"].value_counts().rename("AI_Core")
+    state_df  = pd.concat([ai_state, all_state], axis=1).dropna()
+    state_df["AI_Share_pct"] = state_df["AI_Core"] / state_df["Total"] * 100
+    state_df = state_df[state_df["Total"] >= 100].sort_values("AI_Share_pct", ascending=False).head(20)
+
+    fig2 = px.bar(
+        state_df.reset_index().rename(columns={"STATE_NAME":"State"}),
+        x="AI_Share_pct", y="State", orientation="h",
+        title="States with Highest AI/ML Core Concentration (%, min 100 postings)",
+        color="AI_Share_pct", color_continuous_scale="Blues",
+        labels={"AI_Share_pct": "AI/ML Core Share (%)"},
+    )
+    fig2.update_layout(yaxis={"categoryorder": "total ascending"}, height=540)
+    fig2.show()
+```
+
+```{python}
+# ── B3. AI/ML Core — industry breakdown ───────────────────────────────────────
+if "NAICS_2022_2_NAME" in ai_core.columns:
+    ind_ai = ai_core["NAICS_2022_2_NAME"].value_counts().reset_index()
+    ind_ai.columns = ["Industry", "Count"]
+
+    fig = px.pie(
+        ind_ai.head(10), names="Industry", values="Count", hole=0.4,
+        title="AI/ML Core Jobs by Industry (Top 10)",
+        color_discrete_sequence=px.colors.qualitative.Set3,
+    )
+    fig.update_traces(textinfo="percent+label")
+    fig.update_layout(height=480)
+    fig.show()
+
+    # AI/ML Core concentration ratio per industry
+    all_ind   = df["NAICS_2022_2_NAME"].value_counts().rename("Total")
+    ai_ind    = ai_core["NAICS_2022_2_NAME"].value_counts().rename("AI_Core")
+    ind_share = pd.concat([ai_ind, all_ind], axis=1).dropna()
+    ind_share["AI_Share_pct"] = ind_share["AI_Core"] / ind_share["Total"] * 100
+    ind_share = ind_share[ind_share["Total"] >= 200].sort_values("AI_Share_pct", ascending=False)
+
+    fig2 = px.bar(
+        ind_share.reset_index().rename(columns={"NAICS_2022_2_NAME": "Industry"}),
+        x="AI_Share_pct", y="Industry", orientation="h",
+        title="AI/ML Core Concentration by Industry (%, min 200 total postings)",
+        color="AI_Share_pct", color_continuous_scale="Blues",
+        labels={"AI_Share_pct": "AI/ML Core Share (%)"},
+    )
+    fig2.update_layout(yaxis={"categoryorder": "total ascending"}, height=500)
+    fig2.show()
+```
+
+```{python}
+# ── B4. AI/ML Core — top companies and top skills ─────────────────────────────
+if "COMPANY_NAME" in ai_core.columns:
+    top_co = ai_core["COMPANY_NAME"].value_counts().head(15).reset_index()
+    top_co.columns = ["Company", "Count"]
+    fig = px.bar(
+        top_co, x="Count", y="Company", orientation="h",
+        title="Top 15 Companies Hiring for AI/ML Core Roles",
+        color_discrete_sequence=["#1565C0"],
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=500)
+    fig.show()
+
+if "SKILLS_NAME" in ai_core.columns:
+    def skill_counter(series):
+        c = Counter()
+        for v in series.dropna():
+            s = str(v)
+            sep = next((x for x in [";",",","|"] if x in s), None)
+            c.update([x.strip() for x in s.split(sep)] if sep else [s.strip()])
+        return c
+
+    ai_skills = skill_counter(ai_core["SKILLS_NAME"])
+    top_skills = pd.DataFrame(ai_skills.most_common(25), columns=["Skill", "Count"])
+
+    fig = px.bar(
+        top_skills, x="Count", y="Skill", orientation="h",
+        title="Top 25 Skills in AI/ML Core Jobs",
+        color_discrete_sequence=["#1565C0"],
+    )
+    fig.update_layout(yaxis={"categoryorder": "total ascending"}, height=580)
+    fig.show()
+```
+
+```{python}
+# ── B5. AI/ML Core — salary distribution and remote work ──────────────────────
+if "SALARY_MID" in ai_core.columns:
+    ai_sal = ai_core[(ai_core["SALARY_MID"] > 10_000) & (ai_core["SALARY_MID"] < 500_000)]
+    print(f"AI/ML Core jobs with salary data: {len(ai_sal):,}")
+    print(f"  Median salary: ${ai_sal['SALARY_MID'].median():,.0f}")
+    print(f"  Mean salary:   ${ai_sal['SALARY_MID'].mean():,.0f}")
+    print(f"  25th pct:      ${ai_sal['SALARY_MID'].quantile(0.25):,.0f}")
+    print(f"  75th pct:      ${ai_sal['SALARY_MID'].quantile(0.75):,.0f}")
+
+    fig = px.histogram(
+        ai_sal, x="SALARY_MID", nbins=30,
+        title="AI/ML Core — Salary Distribution",
+        labels={"SALARY_MID": "Annual Salary ($)"},
+        color_discrete_sequence=["#1565C0"],
+    )
+    fig.update_layout(height=380)
+    fig.show()
+
+if "REMOTE_TYPE_NAME" in ai_core.columns:
+    remote_ai = ai_core["REMOTE_TYPE_NAME"].value_counts().reset_index()
+    remote_ai.columns = ["Work Type", "Count"]
+    fig = px.pie(
+        remote_ai, names="Work Type", values="Count",
+        title="AI/ML Core — Work Arrangement Breakdown",
+        color_discrete_sequence=px.colors.qualitative.Set2,
+        hole=0.4,
+    )
+    fig.update_traces(textinfo="percent+label")
+    fig.update_layout(height=400)
+    fig.show()
+```
