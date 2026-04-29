@@ -17,7 +17,7 @@ about:
       href: mailto:kayyang@bu.edu
     - icon: file-earmark-pdf
       text: Resume
-      href: cv.pdf
+      href: CV_Jingyuan Yang.pdf
 ---
 
 Master of Science in Applied Business Analytics candidate at Boston University, 
