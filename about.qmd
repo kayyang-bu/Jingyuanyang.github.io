@@ -1,5 +1,49 @@
 ---
-title: "About"
+title: "Jingyuan Yang"
+image: profile.jpg
+about:
+  template: trestles
+  image-width: 15em
+  image-shape: round
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://linkedin.com/in/jingyuanyang
+    - icon: github
+      text: GitHub
+      href: https://github.com/kayyang-bu
+    - icon: envelope
+      text: Email
+      href: mailto:kayyang@bu.edu
+    - icon: file-earmark-pdf
+      text: Resume
+      href: cv.pdf
 ---
 
-About this site
+Master of Science in Applied Business Analytics candidate at Boston University, 
+with a background in data analytics, machine learning, and big data engineering.
+
+Currently exploring generative AI applications in finance through coursework 
+on RAG systems with SEC 10-K filings, and big data salary analytics on AWS EC2.
+
+## Experience
+
+**Kuaishou** — Data Analyst  
+Driver onboarding analysis project.
+
+**Poizon** — Data Analyst  
+Built data warehouse and visualization dashboard identifying Medicare Advantage 
+benefit enrollment opportunity gaps using CMS, Medicaid, SNAP, and Census datasets.
+
+## Education
+
+**Boston University** — M.S. Applied Business Analytics
+**The Chinese University of Hong Kong, Shen Zhen** - B.B.A Finance
+
+## Skills
+
+Python · SQL · R · PySpark · AWS · Tableau · Plotly · scikit-learn
+
+## Resume
+
+[Download my CV (PDF)](CV_Jingyuan Yang.pdf)
