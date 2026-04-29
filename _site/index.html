@@ -6,8 +6,10 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
+<meta name="author" content="GROUP IV">
+<meta name="dcterms.date" content="2026-04-28">
 
-<title>Jingyuan Yang</title>
+<title>AI Careers and Industry Trends: – Job Market Analysis 2024</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -20,7 +22,27 @@ ul.task-list li input[type="checkbox"] {
   margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
-</style>
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
 
 
 <script src="site_libs/quarto-nav/quarto-nav.js"></script>
@@ -40,7 +62,7 @@ ul.task-list li input[type="checkbox"] {
 <link href="site_libs/quarto-html/quarto-syntax-highlighting-dc55a5b9e770e841cd82e46aadbfb9b0.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap-ed29be17f7a4e5391bbd6651c08d9acf.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+<link href="site_libs/bootstrap/bootstrap-5b4ad623e5705c0698d39aec6f10cf02.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -70,7 +92,6 @@ ul.task-list li input[type="checkbox"] {
 }</script>
 
 
-<link rel="stylesheet" href="styles.css">
 </head>
 
 <body class="nav-fixed quarto-light">
@@ -83,7 +104,7 @@ ul.task-list li input[type="checkbox"] {
     <a href="./index.html" class="navbar-brand navbar-brand-logo">
     </a>
     <a class="navbar-brand" href="./index.html">
-    <span class="navbar-title">Jingyuan Yang</span>
+    <span class="navbar-title">Job Market Analysis 2024</span>
     </a>
   </div>
             <div id="quarto-search" class="" title="Search"></div>
@@ -98,8 +119,47 @@ ul.task-list li input[type="checkbox"] {
   </li>  
   <li class="nav-item">
     <a class="nav-link" href="./about.html"> 
-<span class="menu-text">About</span></a>
+<span class="menu-text">About Me</span></a>
   </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./data_cleaning.html"> 
+<span class="menu-text">Data Preparation</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./eda.html"> 
+<span class="menu-text">EDA</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./skill_gap_analysis.html"> 
+<span class="menu-text">Skill Gap Analysis</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="./ml_methods.html"> 
+<span class="menu-text">ML Methods</span></a>
+  </li>  
+  <li class="nav-item dropdown ">
+    <a class="nav-link dropdown-toggle" href="#" id="nav-menu-career-strategy" role="link" data-bs-toggle="dropdown" aria-expanded="false">
+ <span class="menu-text">Career Strategy</span>
+    </a>
+    <ul class="dropdown-menu" aria-labelledby="nav-menu-career-strategy">    
+        <li>
+    <a class="dropdown-item" href="./career_plan.html">
+ <span class="dropdown-text">AI Tier Classification</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./career_plan2.html">
+ <span class="dropdown-text">AI/ML Core Deep Dive</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./career_plan3.html">
+ <span class="dropdown-text">Temporal &amp; Industry Trends</span></a>
+  </li>  
+        <li>
+    <a class="dropdown-item" href="./career_plan4.html">
+ <span class="dropdown-text">Key Findings &amp; Summary</span></a>
+  </li>  
+    </ul>
+  </li>
 </ul>
           </div> <!-- /navcollapse -->
             <div class="quarto-navbar-tools">
@@ -111,22 +171,53 @@ ul.task-list li input[type="checkbox"] {
 <div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
 <!-- margin-sidebar -->
-    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar zindex-bottom">
-        
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#ai-vs.-non-ai-careers" id="toc-ai-vs.-non-ai-careers" class="nav-link active" data-scroll-target="#ai-vs.-non-ai-careers"><span class="header-section-number">1</span> AI vs.&nbsp;Non-AI Careers</a>
+  <ul class="collapse">
+  <li><a href="#introduction" id="toc-introduction" class="nav-link" data-scroll-target="#introduction"><span class="header-section-number">1.1</span> Introduction</a></li>
+  <li><a href="#research-rationale" id="toc-research-rationale" class="nav-link" data-scroll-target="#research-rationale"><span class="header-section-number">1.2</span> Research Rationale</a></li>
+  <li><a href="#literature-review" id="toc-literature-review" class="nav-link" data-scroll-target="#literature-review"><span class="header-section-number">1.3</span> Literature Review</a></li>
+  </ul></li>
+  <li><a href="#business-analytics-data-science-and-machine-learning-trends" id="toc-business-analytics-data-science-and-machine-learning-trends" class="nav-link" data-scroll-target="#business-analytics-data-science-and-machine-learning-trends"><span class="header-section-number">2</span> Business Analytics, Data Science, and Machine Learning Trends</a>
+  <ul class="collapse">
+  <li><a href="#introduction-1" id="toc-introduction-1" class="nav-link" data-scroll-target="#introduction-1"><span class="header-section-number">2.1</span> Introduction</a></li>
+  <li><a href="#research-rationale-1" id="toc-research-rationale-1" class="nav-link" data-scroll-target="#research-rationale-1"><span class="header-section-number">2.2</span> Research Rationale</a></li>
+  <li><a href="#literature-review-1" id="toc-literature-review-1" class="nav-link" data-scroll-target="#literature-review-1"><span class="header-section-number">2.3</span> Literature Review</a></li>
+  </ul></li>
+  <li><a href="#references" id="toc-references" class="nav-link" data-scroll-target="#references"><span class="header-section-number">3</span> References</a></li>
+  </ul>
+</nav>
     </div>
 <!-- main -->
 <main class="content" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Jingyuan Yang</h1>
+<h1 class="title">AI Careers and Industry Trends:</h1>
+<p class="subtitle lead">A Data-Driven Analysis of the 2024 Job Market</p>
 </div>
 
 
 
 <div class="quarto-title-meta">
 
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>GROUP IV </p>
+          </div>
+  </div>
     
+    <div>
+    <div class="quarto-title-meta-heading">Published</div>
+    <div class="quarto-title-meta-contents">
+      <p class="date">April 28, 2026</p>
+    </div>
+  </div>
   
     
   </div>
@@ -136,12 +227,108 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<p>This is a Quarto website.</p>
-<p>To learn more about Quarto websites visit <a href="https://quarto.org/docs/websites" class="uri">https://quarto.org/docs/websites</a>.</p>
+<section id="ai-vs.-non-ai-careers" class="level2" data-number="1">
+<h2 data-number="1" class="anchored" data-anchor-id="ai-vs.-non-ai-careers"><span class="header-section-number">1</span> AI vs.&nbsp;Non-AI Careers</h2>
+<p><img src="./figures/AI_vs_Human.png" class="img-fluid"></p>
+<section id="introduction" class="level3" data-number="1.1">
+<h3 data-number="1.1" class="anchored" data-anchor-id="introduction"><span class="header-section-number">1.1</span> Introduction</h3>
+<p>Artificial intelligence has moved from research labs into mainstream industries, sparking debate over whether it creates or destroys jobs <span class="citation" data-cites="briggs2023">(<a href="#ref-briggs2023" role="doc-biblioref">Briggs and Dong 2023</a>)</span>. While AI is automating certain tasks, it is simultaneously generating entirely new occupational categories — from Prompt Engineers to AI Ethicists — that did not exist a decade ago <span class="citation" data-cites="mit2024">(<a href="#ref-mit2024" role="doc-biblioref">MIT Technology Review 2024</a>)</span>. This section examines how AI-driven career growth compares to job displacement, how traditional roles are being reshaped, and what new occupations are emerging as a direct result of AI advancement.</p>
+</section>
+<section id="research-rationale" class="level3" data-number="1.2">
+<h3 data-number="1.2" class="anchored" data-anchor-id="research-rationale"><span class="header-section-number">1.2</span> Research Rationale</h3>
+<p>This analysis uses the Lightcast 2024 job postings dataset <span class="citation" data-cites="lightcast2024">(<a href="#ref-lightcast2024" role="doc-biblioref">Lightcast 2024</a>)</span> to empirically examine how AI is reshaping the labor market across industries. While much of the existing discourse on AI and employment relies on macroeconomic projections, this study takes a data-driven approach — analyzing real employer demand signals to identify which roles are growing, which are declining, and how job requirements differ between AI-related and traditional occupations. By examining actual job titles, required skills, and posting volumes across sectors, this analysis aims to move beyond speculation and provide concrete evidence of how AI istransforming hiring in 2024.</p>
+</section>
+<section id="literature-review" class="level3" data-number="1.3">
+<h3 data-number="1.3" class="anchored" data-anchor-id="literature-review"><span class="header-section-number">1.3</span> Literature Review</h3>
+<p>Goldman Sachs (2023) estimated that generative AI could expose roughly 300 million full-time equivalent jobs globally to automation, while projecting net positive employment outcomes over time — noting that approximately 60% of current U.S. workers hold jobs that did not exist in 1940 <span class="citation" data-cites="briggs2023">(<a href="#ref-briggs2023" role="doc-biblioref">Briggs and Dong 2023</a>)</span>. The IMF (2024) found that about 40% of jobs globally face meaningful AI exposure, rising to 60% in high-income economies, stressing that exposure does not always meandisplacement <span class="citation" data-cites="imf2024">(<a href="#ref-imf2024" role="doc-biblioref">International Monetary Fund 2024</a>)</span>.</p>
+<p>The World Economic Forum’s Future of Jobs Report 2025 projected 92 million roles displaced by 2030 alongside 170 million new roles created — a net addition of 78 million jobs <span class="citation" data-cites="wef2025">(<a href="#ref-wef2025" role="doc-biblioref">World Economic Forum 2025</a>)</span>. The ITIF (2025) found that in 2024 alone, AI-related job creation substantially outpaced displacement, with data center expansion generating over 110,000 construction jobs <span class="citation" data-cites="itif2025">(<a href="#ref-itif2025" role="doc-biblioref">Information Technology and Innovation Foundation 2025</a>)</span>. Federal Reserve Bank of St.&nbsp;Louis researchers (2025) detected early correlations between AI exposure and rising unemployment in certain occupational categories <span class="citation" data-cites="stlouis2025">(<a href="#ref-stlouis2025" role="doc-biblioref">Federal Reserve Bank of St. Louis 2025</a>)</span>.</p>
+<p>New job titles are proliferating rapidly. The Prompt Engineer role emerged in 2023 offering high six-figure salaries <span class="citation" data-cites="mit2024">(<a href="#ref-mit2024" role="doc-biblioref">MIT Technology Review 2024</a>)</span>, while AI Ethicist, AI Product Manager, and Machine Learning Operations Specialist roles are now mainstream, with projected growth of 29–45% through the late 2020s <span class="citation" data-cites="atera2026">(<a href="#ref-atera2026" role="doc-biblioref">Atera 2026</a>)</span>. National University (2026) reported that 14% of workers already report AI-related displacement, while entry-level software engineering job postings grew 47% between October 2023 and November 2024 <span class="citation" data-cites="nationaluniversity2026">(<a href="#ref-nationaluniversity2026" role="doc-biblioref">National University 2026</a>)</span>, illustrating AI’s dual nature as both disruptor and creator.</p>
+</section>
+</section>
+<section id="business-analytics-data-science-and-machine-learning-trends" class="level2" data-number="2">
+<h2 data-number="2" class="anchored" data-anchor-id="business-analytics-data-science-and-machine-learning-trends"><span class="header-section-number">2</span> Business Analytics, Data Science, and Machine Learning Trends</h2>
+<p><img src="./figures/website_image.png" class="img-fluid"></p>
+<section id="introduction-1" class="level3" data-number="2.1">
+<h3 data-number="2.1" class="anchored" data-anchor-id="introduction-1"><span class="header-section-number">2.1</span> Introduction</h3>
+<p>Business analytics, data science, and machine learning have become among the most consequential professional fields of the twenty-first century. As organizations across every sector compete to extract value from growing volumes of data, demand for skilled analysts and data scientists has surged <span class="citation" data-cites="ieee2026">(<a href="#ref-ieee2026" role="doc-biblioref">IEEE-USA InSight 2026</a>)</span>. The integration of generative AI has further accelerated this transformation — raising the technical bar for practitioners while simultaneously automating routine analytical tasks <span class="citation" data-cites="gartner2024">(<a href="#ref-gartner2024" role="doc-biblioref">Gartner 2024</a>)</span>. This section examines the most in-demand skills, how job requirements evolved in 2024, which industries are hiring most aggressively, and what the career outlook holds for professionals in these fields.</p>
+</section>
+<section id="research-rationale-1" class="level3" data-number="2.2">
+<h3 data-number="2.2" class="anchored" data-anchor-id="research-rationale-1"><span class="header-section-number">2.2</span> Research Rationale</h3>
+<p>This analysis leverages the Lightcast 2024 job postings dataset <span class="citation" data-cites="lightcast2024">(<a href="#ref-lightcast2024" role="doc-biblioref">Lightcast 2024</a>)</span> to investigate current employer demand for business analytics, data science, and machine learning professionals. Rather than relying solely on projected employment figures, this study examines real job postings to identify which technical skills — such as Python, SQL, NLP, and cloud platforms — appear most frequently, which industries are actively hiring data professionals, and how compensation varies by role, location, and skill requirements. This approach provides a ground-level view of the 2024 job market that complements broader labor market forecasts from sources such as the BLS <span class="citation" data-cites="bls2025data">(<a href="#ref-bls2025data" role="doc-biblioref">U.S. Bureau of Labor Statistics 2025a</a>)</span> and WEF <span class="citation" data-cites="wef2023">(<a href="#ref-wef2023" role="doc-biblioref">World Economic Forum 2023</a>)</span>.</p>
+</section>
+<section id="literature-review-1" class="level3" data-number="2.3">
+<h3 data-number="2.3" class="anchored" data-anchor-id="literature-review-1"><span class="header-section-number">2.3</span> Literature Review</h3>
+<p>The BLS Employment Projections 2024–2034 provide the clearest quantitative baseline. Data scientist employment is projected to grow from 245,900 to 328,300 positions — a 33.5% increase driven by AI model development and enterprise application integration <span class="citation" data-cites="bls2025data">(<a href="#ref-bls2025data" role="doc-biblioref">U.S. Bureau of Labor Statistics 2025a</a>)</span>. Operations research analysts are projected at 21% growth, management analysts at 9%, and market research analysts at 7% <span class="citation" data-cites="bls2025ops bls2025mgmt bls2025mkt">(<a href="#ref-bls2025ops" role="doc-biblioref">U.S. Bureau of Labor Statistics 2025d</a>, <a href="#ref-bls2025mgmt" role="doc-biblioref">2025b</a>, <a href="#ref-bls2025mkt" role="doc-biblioref">2025c</a>)</span>.</p>
+<p>The AnalytixLabs Data Science Skills Survey (2024), drawing on 100+ Fortune 500 hiring managers, found data engineering was the most-recruited function (76.3%), followed by data scientist (73.7%) and machine learning engineer (57.9%) roles <span class="citation" data-cites="analytixlabs2024">(<a href="#ref-analytixlabs2024" role="doc-biblioref">AnalytixLabs 2024</a>)</span>. A 365 Data Science analysis of 1,000 job postings found that NLP skill demand surged from 5% in 2023 to 19% in 2024, and machine learning was mentioned in over 69% of postings <span class="citation" data-cites="datascience365_2024">(<a href="#ref-datascience365_2024" role="doc-biblioref">365 Data Science 2024</a>)</span>.</p>
+<p>The WEF Future of Jobs Report 2023 projected demand for AI and machine learning specialists to increase 40% by 2027 <span class="citation" data-cites="wef2023">(<a href="#ref-wef2023" role="doc-biblioref">World Economic Forum 2023</a>)</span>. Gartner projected that over 50% of data science tasks would be automated by 2025 through AutoML tools <span class="citation" data-cites="gartner2024">(<a href="#ref-gartner2024" role="doc-biblioref">Gartner 2024</a>)</span>, but research consistently finds these tools augment rather than replace skilled professionals. Coursera (2025) noted that business analyst demand is projected to generate approximately 98,100 job openings annually through 2034, with median wages ranging from $78,400 to over $101,000 <span class="citation" data-cites="coursera2025">(<a href="#ref-coursera2025" role="doc-biblioref">Coursera 2025</a>)</span>.</p>
+</section>
+</section>
+<section id="references" class="level2" data-number="3">
 
 
 
-</main> <!-- /main -->
+
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">3 References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-datascience365_2024" class="csl-entry" role="listitem">
+365 Data Science. 2024. <span>“Data Scientist Job Market 2024: Analysis, Trends, Opportunities.”</span> 2024. <a href="https://365datascience.com/career-advice/data-scientist-job-market/">https://365datascience.com/career-advice/data-scientist-job-market/</a>.
+</div>
+<div id="ref-analytixlabs2024" class="csl-entry" role="listitem">
+AnalytixLabs. 2024. <span>“Data Science Skills Survey Report 2024.”</span> 2024. <a href="https://medium.com/@byanalytixlabs/data-science-skills-survey-report-2024-a-comprehensive-market-study-of-most-in-demand-skills-3d9baf772272">https://medium.com/@byanalytixlabs/data-science-skills-survey-report-2024-a-comprehensive-market-study-of-most-in-demand-skills-3d9baf772272</a>.
+</div>
+<div id="ref-atera2026" class="csl-entry" role="listitem">
+Atera. 2026. <span>“5 New AI Job Roles Emerging Right Now.”</span> 2026. <a href="https://www.atera.com/blog/new-ai-job-roles/">https://www.atera.com/blog/new-ai-job-roles/</a>.
+</div>
+<div id="ref-briggs2023" class="csl-entry" role="listitem">
+Briggs, Joseph, and Devesh Dong. 2023. <span>“How Will AI Affect the Global Workforce?”</span> <em>Goldman Sachs Global Economics Research</em>. <a href="https://www.goldmansachs.com/insights/articles/how-will-ai-affect-the-global-workforce">https://www.goldmansachs.com/insights/articles/how-will-ai-affect-the-global-workforce</a>.
+</div>
+<div id="ref-coursera2025" class="csl-entry" role="listitem">
+Coursera. 2025. <span>“What Is a Business Analyst? 2026 Career Guide.”</span> 2025. <a href="https://www.coursera.org/articles/what-does-a-business-analyst-do-and-how-to-become-one">https://www.coursera.org/articles/what-does-a-business-analyst-do-and-how-to-become-one</a>.
+</div>
+<div id="ref-stlouis2025" class="csl-entry" role="listitem">
+Federal Reserve Bank of St. Louis. 2025. <span>“Is AI Contributing to Rising Unemployment? Evidence from Occupational Variation.”</span> 2025. <a href="https://www.stlouisfed.org/on-the-economy/2025/aug/is-ai-contributing-unemployment-evidence-occupational-variation">https://www.stlouisfed.org/on-the-economy/2025/aug/is-ai-contributing-unemployment-evidence-occupational-variation</a>.
+</div>
+<div id="ref-gartner2024" class="csl-entry" role="listitem">
+Gartner. 2024. <span>“Gartner Predicts 2025: AI to Automate Majority of Data Science Tasks.”</span> 2024. <a href="https://www.gartner.com/en/newsroom/press-releases/2021-07-19-gartner-identifies-key-emerging-technologies-spurring-innovation-through-trust-growth-and-change">https://www.gartner.com/en/newsroom/press-releases/2021-07-19-gartner-identifies-key-emerging-technologies-spurring-innovation-through-trust-growth-and-change</a>.
+</div>
+<div id="ref-ieee2026" class="csl-entry" role="listitem">
+IEEE-USA InSight. 2026. <span>“Seven Tech Occupations Poised for Double-Digit Job Growth by 2034.”</span> 2026. <a href="https://insight.ieeeusa.org/articles/seven-tech-occupations-poised-for-double-digit-job-growth-by-2034/">https://insight.ieeeusa.org/articles/seven-tech-occupations-poised-for-double-digit-job-growth-by-2034/</a>.
+</div>
+<div id="ref-itif2025" class="csl-entry" role="listitem">
+Information Technology and Innovation Foundation. 2025. <span>“AI’s Job Impact: Gains Outpace Losses.”</span> 2025. <a href="https://itif.org/publications/2025/12/18/ais-job-impact-gains-outpace-losses/">https://itif.org/publications/2025/12/18/ais-job-impact-gains-outpace-losses/</a>.
+</div>
+<div id="ref-imf2024" class="csl-entry" role="listitem">
+International Monetary Fund. 2024. <span>“Gen-AI: Artificial Intelligence and the Future of Work.”</span> IMF. <a href="https://www.imf.org/en/Publications/Staff-Discussion-Notes/Issues/2024/01/14/Gen-AI-Artificial-Intelligence-and-the-Future-of-Work-542379">https://www.imf.org/en/Publications/Staff-Discussion-Notes/Issues/2024/01/14/Gen-AI-Artificial-Intelligence-and-the-Future-of-Work-542379</a>.
+</div>
+<div id="ref-lightcast2024" class="csl-entry" role="listitem">
+Lightcast. 2024. <span>“Job Postings Data 2024.”</span> 2024. <a href="https://drive.google.com/uc?id=1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ">https://drive.google.com/uc?id=1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ</a>.
+</div>
+<div id="ref-mit2024" class="csl-entry" role="listitem">
+MIT Technology Review. 2024. <span>“Job Titles of the Future: AI Prompt Engineer.”</span> 2024. <a href="https://www.technologyreview.com/2024/04/24/1091125/ai-prompt-engineer-generative-ai-job-titles/">https://www.technologyreview.com/2024/04/24/1091125/ai-prompt-engineer-generative-ai-job-titles/</a>.
+</div>
+<div id="ref-nationaluniversity2026" class="csl-entry" role="listitem">
+National University. 2026. <span>“59 AI Job Statistics: Future of u.s. Jobs.”</span> 2026. <a href="https://www.nu.edu/blog/ai-job-statistics/">https://www.nu.edu/blog/ai-job-statistics/</a>.
+</div>
+<div id="ref-bls2025data" class="csl-entry" role="listitem">
+U.S. Bureau of Labor Statistics. 2025a. <span>“Data Scientists: Occupational Outlook Handbook.”</span> 2025. <a href="https://www.bls.gov/ooh/math/data-scientists.htm">https://www.bls.gov/ooh/math/data-scientists.htm</a>.
+</div>
+<div id="ref-bls2025mgmt" class="csl-entry" role="listitem">
+———. 2025b. <span>“Management Analysts: Occupational Outlook Handbook.”</span> 2025. <a href="https://www.bls.gov/ooh/business-and-financial/management-analysts.htm">https://www.bls.gov/ooh/business-and-financial/management-analysts.htm</a>.
+</div>
+<div id="ref-bls2025mkt" class="csl-entry" role="listitem">
+———. 2025c. <span>“Market Research Analysts: Occupational Outlook Handbook.”</span> 2025. <a href="https://www.bls.gov/ooh/business-and-financial/market-research-analysts.htm">https://www.bls.gov/ooh/business-and-financial/market-research-analysts.htm</a>.
+</div>
+<div id="ref-bls2025ops" class="csl-entry" role="listitem">
+———. 2025d. <span>“Operations Research Analysts: Occupational Outlook Handbook.”</span> 2025. <a href="https://www.bls.gov/ooh/math/operations-research-analysts.htm">https://www.bls.gov/ooh/math/operations-research-analysts.htm</a>.
+</div>
+<div id="ref-wef2023" class="csl-entry" role="listitem">
+World Economic Forum. 2023. <span>“Future of Jobs Report 2023.”</span> World Economic Forum. <a href="https://www.weforum.org/publications/the-future-of-jobs-report-2023/">https://www.weforum.org/publications/the-future-of-jobs-report-2023/</a>.
+</div>
+<div id="ref-wef2025" class="csl-entry" role="listitem">
+———. 2025. <span>“Future of Jobs Report 2025.”</span> World Economic Forum. <a href="https://www.weforum.org/publications/the-future-of-jobs-report-2025/">https://www.weforum.org/publications/the-future-of-jobs-report-2025/</a>.
+</div>
+</div></section></div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
   window.document.addEventListener("DOMContentLoaded", function (event) {
     const icon = "";
