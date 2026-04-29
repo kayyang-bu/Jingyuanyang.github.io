@@ -1,25 +1,51 @@
 project:
   type: website
-  output-dir: _site
-
+  output-dir: docs
+  render:
+    - index2.qmd
+    - data_cleaning.qmd
+    - eda.qmd
+    - skill_gap_analysis.qmd
+    - ml_methods.qmd
+    - career_plan.qmd
+    - career_plan2.qmd
+    - career_plan3.qmd
+    - career_plan4.qmd
 website:
-  title: "Jingyuan Yang Portfolio"
+  title: "About me - Job Market Analysis 2024"
   navbar:
     left:
-      - href: index.qmd
-        text: Home
+      - href: index2.qmd
+        text: "Home"
       - href: about.qmd
-        text: About
-      - href: projects.qmd
-        text: Projects
-      - href: contact.qmd
-        text: Contact
-
+        text: "Home"
+      - href: data_cleaning.qmd
+        text: "Data Preparation"
+      - href: eda.qmd
+        text: "EDA"
+      - href: skill_gap_analysis.qmd
+        text: "Skill Gap Analysis"
+      - href: ml_methods.qmd
+        text: "ML Methods"
+      - text: "Career Strategy"
+        menu:
+          - text: "AI Tier Classification"
+            href: career_plan.qmd
+          - text: "AI/ML Core Deep Dive"
+            href: career_plan2.qmd
+          - text: "Temporal & Industry Trends"
+            href: career_plan3.qmd 
+          - text: "Key Findings & Summary"
+            href: career_plan4.qmd                       
+          
 format:
   html:
     theme: cosmo
-    css: styles.css
     toc: true
+
+execute:
+  eval: false
+
 
 
 
