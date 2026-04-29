@@ -1,0 +1,148 @@
+---
+title: "Skill Gap Analysis"
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    number-sections: true
+execute:
+  eval: true
+  echo: false
+  warning: false
+  message: false
+---
+
+# Skill Gap Analysis
+
+## 1. Purpose
+
+This section evaluates the gap between our team’s current technical skill levels and the skills most demanded in the 2024 job market. Building on our Exploratory Data Analysis (EDA), we focus on key skill categories in data science, business analytics, and machine learning roles. The goal is to identify strengths, highlight gaps, and provide actionable recommendations for career development.
+
+
+
+## 2. Market Skill Demand from EDA
+
+Based on our EDA of the Lightcast dataset, job postings in data and analytics roles emphasize the following skill groups:
+
+- Programming: Python, R, Scala  
+- Core Data Skills: SQL, statistics, data analysis, data visualization  
+- Traditional BI Tools: Tableau, Power BI, Excel  
+- Cloud Platforms: AWS, Azure, Databricks, Snowflake  
+- AI/ML Tools: TensorFlow, PyTorch, scikit-learn, MLflow, SageMaker  
+
+These findings indicate that employers increasingly expect candidates to combine strong analytical foundations with technical and cloud-based capabilities.
+
+
+
+## 3. Team Skill Assessment
+
+We evaluated the current skill levels of each team member using a 1–5 scale:
+
+- 1 = Beginner  
+- 2 = Basic Knowledge  
+- 3 = Intermediate  
+- 4 = Advanced  
+- 5 = Expert  
+
+```{python}
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+skills_data = {
+    "Name": ["Zifan Chen", "Jingyuan Yang", "Zhenjie Shao", "Zhuolun Wu", "Almas Tussipov"],
+    "Python": [3, 3, 4, 4, 4],
+    "SQL": [3, 5, 3, 3, 4],
+    "Statistics": [4, 4, 4, 4, 4],
+    "Data Visualization": [5, 5, 4, 4, 5],
+    "Excel": [4, 5, 4, 4, 5],
+    "Tableau/Power BI": [5, 4, 3, 4, 5],
+    "AWS/Azure": [3, 3, 3, 3, 3],
+    "Machine Learning": [3, 3, 4, 3, 4],
+    "AI/ML Tools": [4, 4, 4, 4, 2]
+}
+
+df_skills = pd.DataFrame(skills_data)
+df_skills = df_skills.set_index("Name")
+df_skills
+```
+
+## 4. Team Skill Visualization
+
+```{python}
+plt.figure(figsize=(10, 6))
+sns.heatmap(df_skills, annot=True, cmap="YlGnBu", linewidths=0.5, fmt=".0f")
+plt.title("Team Skill Levels Heatmap")
+plt.tight_layout()
+plt.show()
+```
+
+### Interpretation
+
+The heatmap shows that the team is relatively strong in foundational skills such as Excel, Python, and data visualization. However, advanced skills such as cloud platforms, machine learning, and AI tools are relatively weak across most members.
+
+This suggests that the team is well-prepared for basic data analysis tasks but may face challenges when applying advanced analytics techniques in real-world business environments.
+
+## 5. Comparing Team Skills with Market Demand
+
+To compare internal capabilities with market expectations, we define a simplified benchmark based on the key skill groups identified in our EDA.
+
+```{python}
+market_demand = pd.Series({
+    "Python": 5,
+    "SQL": 5,
+    "Statistics": 4,
+    "Data Visualization": 4,
+    "Excel": 3,
+    "Tableau/Power BI": 4,
+    "AWS/Azure": 4,
+    "Machine Learning": 4,
+    "AI/ML Tools": 3
+}, name="Market Demand")
+
+team_average = df_skills.mean(axis=0).round(2)
+
+gap_df = pd.DataFrame({
+    "Team Average": team_average,
+    "Market Demand": market_demand
+})
+
+gap_df["Gap"] = (gap_df["Market Demand"] - gap_df["Team Average"]).round(2)
+gap_df = gap_df.sort_values("Gap", ascending=False)
+
+gap_df
+```
+
+## 6. Skill Gap Visualization
+
+```{python}
+plt.figure(figsize=(10, 6))
+sns.barplot(x=gap_df["Gap"], y=gap_df.index)
+plt.title("Skill Gap: Market Demand vs Team Average")
+plt.xlabel("Gap Size")
+plt.ylabel("Skill")
+plt.tight_layout()
+plt.show()
+```
+### Interpretation
+
+The largest gaps appear in cloud platforms, machine learning, and AI-related tools. The team is relatively closer to market expectations in Excel, Python, and basic data analysis skills.
+
+This indicates that while the team has a solid analytical foundation, there is a need to strengthen more advanced technical capabilities to remain competitive in the job market.
+
+
+## 7. Recommendations for Skill Development
+To address the identified gaps, the following actions are recommended:
+
+- Strengthen Python and SQL proficiency across all team members
+- Learn cloud platforms such as AWS or Azure
+- Develop machine learning skills using libraries like scikit-learn
+- Improve data visualization skills using Tableau, Power BI, or Plotly
+- Work on real-world projects to integrate analysis, modelling, and visualization
+
+
+## 8. Conclusion
+Overall, the team demonstrates a strong foundation in core analytics skills. However, gaps in advanced technical areas such as cloud computing and machine learning suggest the need for continued skill development.
+
+By aligning learning efforts with market demand, the team can significantly improve its competitiveness in business analytics and data science roles.
