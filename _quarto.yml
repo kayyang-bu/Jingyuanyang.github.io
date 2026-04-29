@@ -2,7 +2,7 @@ project:
   type: website
   output-dir: docs
   render:
-    - index2.qmd
+    - index.qmd
     - about.qmd
     - data_cleaning.qmd
     - eda.qmd
@@ -16,7 +16,7 @@ website:
   title: "About me - Job Market Analysis 2024"
   navbar:
     left:
-      - href: index2.qmd
+      - href: index.qmd
         text: "Home"
       - href: about.qmd
         text: "About Me"
