@@ -1,1 +1,6 @@
 jupyter
+pandas
+matplotlib
+plotly
+seaborn
+sklearn
