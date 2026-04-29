@@ -1,0 +1,387 @@
+---
+title: "NLP Analysis"
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    embed-resources: true
+execute:
+  echo: false
+  eval: true
+---
+
+
+```{python}
+import subprocess, sys
+for pkg in ["gdown", "plotly", "kaleido"]:
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "-q", pkg])
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly.express as px
+import plotly.graph_objects as go
+from collections import Counter
+import warnings, gdown, os
+warnings.filterwarnings("ignore")
+pd.set_option("display.max_columns", 60)
+#print("Ready.")
+```
+
+```{python}
+# ── Download & clean (self-contained) ────────────────────────────────────────
+RAW = "lightcast_2024.csv"
+if not os.path.exists(RAW):
+    gdown.download("https://drive.google.com/uc?id=1V2GCHGt2dkFGqVBeoUFckU4IhUgk4ocQ",
+                   RAW, quiet=False)
+
+df_raw = pd.read_csv(RAW, low_memory=False)
+#print(f"Raw: {df_raw.shape}")
+
+df = df_raw.copy()
+
+# 1. Drop internal tracking columns
+drop1 = ["ID","URL","ACTIVE_URLS","ACTIVE_SOURCES_INFO","DUPLICATES",
+         "LAST_UPDATED_TIMESTAMP","LAST_UPDATED_DATE",
+         "NAICS2","NAICS3","NAICS4","NAICS5","NAICS6",
+         "SOC_2","SOC_2_NAME","SOC_3","SOC_3_NAME","SOC_5","SOC_5_NAME"]
+df.drop(columns=[c for c in drop1 if c in df.columns], inplace=True)
+
+# 2. Drop columns >50% missing — protect salary & education columns
+PROTECT = ["SALARY","SALARY_FROM","SALARY_TO","ORIGINAL_PAY_PERIOD",
+           "MIN_YEARS_EXPERIENCE","MAX_YEARS_EXPERIENCE",
+           "MIN_EDULEVELS","MIN_EDULEVELS_NAME",
+           "MAX_EDULEVELS","MAX_EDULEVELS_NAME",
+           "LIGHTCAST_SECTORS","LIGHTCAST_SECTORS_NAME"]
+prot = [c for c in PROTECT if c in df.columns]
+nonp = [c for c in df.columns if c not in prot]
+keep = [c for c in nonp if df[c].isnull().mean() < 0.5] + prot
+df   = df[keep]
+
+# 3. Deduplicate on key identity columns
+dup_key = [c for c in ["TITLE_RAW","COMPANY_NAME","STATE_NAME","POSTED"] if c in df.columns]
+df.drop_duplicates(subset=dup_key, keep="first", inplace=True)
+
+# 4. Compute midpoint salary
+if "SALARY_FROM" in df.columns and "SALARY_TO" in df.columns:
+    df["SALARY_MID"] = df[["SALARY_FROM","SALARY_TO"]].mean(axis=1)
+    if "SALARY" in df.columns:
+        df["SALARY_MID"] = df["SALARY_MID"].fillna(df["SALARY"])
+elif "SALARY" in df.columns:
+    df["SALARY_MID"] = df["SALARY"]
+
+# 5. Fill categorical columns
+cat_fill = ["NAICS_2022_6_NAME","NAICS_2022_2_NAME","SOC_2021_4_NAME",
+            "REMOTE_TYPE_NAME","STATE_NAME","MIN_EDULEVELS_NAME",
+            "LOT_V6_OCCUPATION_NAME","LOT_V6_SPECIALIZED_OCCUPATION_NAME",
+            "EMPLOYMENT_TYPE_NAME"]
+for c in cat_fill:
+    if c in df.columns:
+        df[c].fillna("Unknown", inplace=True)
+
+# 6. Date parsing
+df["POSTED_DT"]    = pd.to_datetime(df["POSTED"], errors="coerce")
+df["POSTED_MONTH"] = df["POSTED_DT"].dt.to_period("M").astype(str)
+df["POSTED_WEEK"]  = df["POSTED_DT"].dt.to_period("W").astype(str)
+
+#print(f"Cleaned: {df.shape}")
+#print(f"Date range: {df['POSTED_DT'].min().date()} → {df['POSTED_DT'].max().date()}")
+#print(f"Columns kept: {df.shape[1]}")
+```
+
+
+```{python}
+# ── A1. Build 3-tier classifier ───────────────────────────────────────────────
+
+# Keywords for LOT occupation label matching
+AI_OCC_KW  = ["machine learning","data scien","ai ","artificial intelligence",
+               "deep learning","nlp","computer vision","research scientist",
+               "mlops","generative"]
+ADV_OCC_KW = ["data engineer","analytics engineer","quantitative",
+               "statistician","modeler","architect","computer systems"]
+
+# Strict title keywords (unambiguous AI/ML only)
+AI_TITLE_STRICT = [
+    "machine learning engineer","ml engineer","data scientist",
+    "ai engineer","artificial intelligence","deep learning",
+    "nlp engineer","computer vision","research scientist",
+    "generative ai","gen ai","llm","mlops","ml ops",
+    "applied scientist","ai architect","ml architect",
+]
+ADV_TITLE_KW = [
+    "data engineer","analytics engineer","platform engineer",
+    "data architect","solutions architect","enterprise architect",
+    "data modeler","quantitative analyst","statistician",
+    "data infrastructure","data platform",
+]
+
+# Strict ML tool skills (only specific frameworks, not generic data skills)
+AI_SKILLS_STRICT = [
+    "tensorflow","pytorch","keras","scikit-learn","sklearn",
+    "hugging face","langchain","llm","transformers","bert",
+    "mlflow","kubeflow","sagemaker","vertex ai","azure machine learning",
+    "spark ml","xgboost","lightgbm","catboost",
+    "computer vision","natural language processing","reinforcement learning",
+    "neural network","deep learning",
+]
+
+def classify_by_occ(occ):
+    t = str(occ).lower()
+    if any(k in t for k in AI_OCC_KW):  return "AI/ML Core"
+    if any(k in t for k in ADV_OCC_KW): return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def classify_by_title(title):
+    t = str(title).lower()
+    if any(k in t for k in AI_TITLE_STRICT): return "AI/ML Core"
+    if any(k in t for k in ADV_TITLE_KW):   return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+def has_ai_skill(skills_str):
+    s = str(skills_str).lower()
+    return any(k in s for k in AI_SKILLS_STRICT)
+
+# Apply classifiers
+occ_col = next((c for c in ["LOT_V6_SPECIALIZED_OCCUPATION_NAME","LOT_V6_OCCUPATION_NAME"]
+                if c in df.columns), None)
+if occ_col:
+    df["TIER_LOT"] = df[occ_col].apply(classify_by_occ)
+
+if "TITLE_RAW" in df.columns:
+    df["TIER_TITLE"] = df["TITLE_RAW"].apply(classify_by_title)
+
+if "SKILLS_NAME" in df.columns:
+    df["HAS_AI_SKILL"] = df["SKILLS_NAME"].apply(has_ai_skill)
+
+# Combined: LOT primary → title fallback → else Traditional
+def combine_tiers(row):
+    lot   = row.get("TIER_LOT",   "Traditional Analytics / BI")
+    title = row.get("TIER_TITLE", "Traditional Analytics / BI")
+    if lot == "AI/ML Core" or title == "AI/ML Core":         return "AI/ML Core"
+    if lot == "Advanced Analytics / Engineering" or \
+       title == "Advanced Analytics / Engineering":          return "Advanced Analytics / Engineering"
+    return "Traditional Analytics / BI"
+
+df["AI_TIER"] = df.apply(combine_tiers, axis=1)
+
+```
+
+```{python}
+# ── A2. Tier distribution — pie + count bar ───────────────────────────────────
+COLOR_MAP = {
+    "AI/ML Core":                      "#1565C0",
+    "Advanced Analytics / Engineering": "#00897B",
+    "Traditional Analytics / BI":       "#78909C",
+}
+
+tier_counts = df["AI_TIER"].value_counts().reset_index()
+tier_counts.columns = ["Tier", "Count"]
+
+
+```
+
+***
+## Section D - Key Findings Summary
+
+```{python}
+# ── D. Print consolidated findings ────────────────────────────────────────────
+sep = "=" * 70
+print(sep)
+print(" KEY FINDINGS — AD688 Final EDA")
+print(sep)
+
+print("""
+DATASET OVERVIEW
+----------------------------------
+- Raw: 72,498 rows × 131 columns  |  Cleaned: 67,572 rows × 117 columns
+- Date range: 2024-05-01 → 2024-09-30  (5 months)
+- Scope: data / analytics / tech occupations (Lightcast pre-filter)
+""")
+
+print("""
+TOPIC 2.1 — AI vs. Non-AI Careers
+----------------------------------
+1. Classification breakdown (3-tier combined classifier):
+   - Traditional Analytics / BI        57,870  (85.6%)
+   - Advanced Analytics / Engineering   9,398  (13.9%)
+   - AI/ML Core                           304   (0.4%)
+   → Only 1.8% of postings explicitly list specific ML framework skills
+     (TensorFlow, PyTorch, Keras, etc.).
+   → All 304 AI/ML Core jobs were flagged by STRICT TITLE KEYWORDS —
+     the Lightcast LOT taxonomy flagged ZERO as AI/ML Core,
+     confirming the taxonomy is too broad to distinguish true AI roles.
+
+2. Salary gradient (confirmed):
+   Advanced Analytics / Engineering   Median ,000  (P25 k  P75 k)
+   AI/ML Core                         Median ,000  (P25 $ 97k  P75 k)
+   Traditional Analytics / BI         Median ,000  (P25 $ 75k  P75 k)
+   → Counter-intuitive: Advanced Analytics (architects, senior data engineers)
+     out-earns labeled 'AI/ML Core' roles — likely due to seniority mix.
+     The salary premium for AI roles exists but is less extreme than expected.
+
+3. Remote work — SURPRISING finding:
+   Fully Remote:  AI/ML Core 6.6%  |  Advanced 25.0%  |  Traditional 16.4%
+   On-Site:       AI/ML Core 13.2% |  Advanced  1.1%  |  Traditional  1.6%
+   → AI/ML Core roles are the LEAST remote and MOST on-site of the three tiers.
+     Advanced Analytics/Engineering is the most remote-friendly tier (25%).
+     ~78% of all postings do not specify remote type.
+""")
+
+print("""
+SECTION B — AI/ML CORE DEEP DIVE
+---------------------------------
+4. Monthly growth trend (AI/ML Core):
+   May 51 → Jun 60 → Jul 60 → Aug 65 → Sep 68  (+33% over 5 months)
+   Market share: 0.37% (May) → 0.47% (Sep)
+   → Despite tiny absolute numbers, AI/ML Core postings show a consistent
+     upward trend throughout the observation window.
+
+5. Geographic distribution (AI/ML Core volume):
+   Top states: Texas, California, Virginia, North Carolina, Illinois,
+               Maryland, Pennsylvania, New York
+   Top by concentration: Maryland, Washington D.C., Connecticut, Alabama,
+               Minnesota lead in AI/ML Core share relative to total postings.
+   → AI/ML Core is NOT exclusively a coastal/tech-hub phenomenon.
+
+6. Industry distribution (AI/ML Core):
+   Highest AI/ML Core CONCENTRATION by industry (min 200 postings):
+   Transportation & Warehousing > Mining/Oil & Gas > Information > Finance
+   → Surprisingly, Transportation & Warehousing has the highest ML-tool
+     requirement rate (1.44%), ahead of Information (0.92%) and Finance (0.90%).
+     This likely reflects autonomous vehicle, route optimization, and logistics AI.
+
+7. Top companies hiring AI/ML Core: Honu Services, Capgemini, Penske,
+   Deloitte, Disney, Mayo Clinic, Nestlé, Cognizant, US Bank, Travelers
+   → Mix of consulting firms, healthcare, automotive, and financial services.
+
+8. Top skills in AI/ML Core: Data Science, Machine Learning, Python,
+   Statistics, AI, Mathematics, AWS, Azure, Generative AI, Computer Science
+   → Core ML skills + cloud platforms dominate; Generative AI already appears
+     in top 25 skills, reflecting 2024 market shift.
+""")
+
+print("""
+TOPIC 2.5 — BA / Data Science / ML Trends
+------------------------------------------
+9.  Overall posting volume:
+    May 13,897 → Jun 13,159 → Jul 11,904 → Aug 14,221 → Sep 14,390
+    → Volume dipped in July (summer slowdown) but recovered strongly by Sep.
+
+10. Occupation growth (May → Sep 2024):
+    Business / Management Analyst        +51.4%  (fastest growing)
+    Data / Data Mining Analyst           +11.0%
+    Clinical Analyst                      -3.4%
+    Business Intelligence Analyst         -4.5%
+    Computer Systems Engineer/Architect  -11.2%
+    Market Research Analyst              -15.0%
+    → Demand for generalist business analytics roles surged while
+      specialized engineering and BI roles declined.
+
+11. Industry growth (May → Sep 2024):
+    Information                           +33.2%
+    Finance and Insurance                 +15.2%
+    Wholesale Trade                       +14.5%
+    Health Care and Social Assistance      +7.7%
+    Professional/Scientific/Technical     -1.9%
+    Administrative & Support Services     -5.8%
+    → Information and Finance are the fastest-growing employers of
+      data/tech talent; traditionally dominant PSTS sector is flat.
+
+12. AI/ML tool skill penetration (% of postings, by industry):
+    Transportation & Warehousing 1.44% | Mining 1.22% | Information 0.92%
+    Finance 0.90% | PSTS 0.67% | Education 0.66%
+    → Overall penetration is very low (<2%) and FLAT across the 5-month
+      window — AI adoption in job postings was NOT accelerating in 2024H2.
+
+13. Salary trend:
+    May ,500 → Jun ,000 → Jul ,200 → Aug ,685 → Sep ,000
+    → Salary dipped during summer (typical hiring cycle pattern) then
+      partially recovered, ending below the May peak. No clear upward trend
+      in the short observation window.
+""")
+
+print(sep)
+```
+***
+## Section E - NLP Analysis — Job Description Insights
+#This section extends the analysis beyond structured variables by applying Natural Language Processing (NLP) techniques to job descriptions.
+#The goal is to extract key skills, understand employer requirements, and identify hidden patterns in unstructured text data.
+
+```{python}
+import re
+def clean_text(text):
+    text = str(text).lower()
+    text = re.sub(r'<[^>]+>', ' ', text)   
+    text = re.sub(r'[^a-z\s]', ' ', text)  
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+text_col = next((c for c in df.columns if "desc" in c.lower()), None)
+
+if text_col is None:
+    text_data = df["TITLE_RAW"].dropna().astype(str)
+else:
+    text_data = df[text_col].apply(clean_text).dropna().astype(str)
+
+text_data = text_data[text_data.str.len() > 2]
+```
+```{python}
+vectorizer = CountVectorizer(stop_words='english', max_features=20)
+text_data = text_data.dropna().astype(str)
+text_data = text_data[text_data.str.len() > 2]
+X = vectorizer.fit_transform(text_data)
+
+word_counts = pd.DataFrame({
+    "word": vectorizer.get_feature_names_out(),
+    "count": X.toarray().sum(axis=0)
+}).sort_values(by="count", ascending=False)
+
+word_counts
+```
+##1. Word Frequency Table
+##This table shows the most frequently used words in the job posting text. The most common words are analyst, data, consultant, SAP, architect, and senior. This suggests that the dataset is heavily focused on business analytics, enterprise systems, consulting, and technical business roles. Words such as SAP, Oracle, ERP, and enterprise also indicate that many employers are looking for candidates with enterprise software and business systems knowledge, not only general data skills.
+```{python}
+tfidf = TfidfVectorizer(stop_words='english', max_features=20)
+X_tfidf = tfidf.fit_transform(text_data)
+
+tfidf_scores = pd.DataFrame({
+    "word": tfidf.get_feature_names_out(),
+    "score": X_tfidf.toarray().mean(axis=0)
+}).sort_values(by="score", ascending=False)
+
+tfidf_scores
+```
+##2. TF-IDF Keyword Table
+##The TF-IDF results are similar to the word frequency results, but they give more weight to words that are important across the text rather than just repeated often. Analyst and data still have the highest scores, which confirms that analytics-related roles dominate the dataset. The high scores for SAP, consultant, architect, and enterprise show that specialized business technology skills are important in this job market. Compared with simple word counts, TF-IDF gives a better sense of which terms are more meaningful for understanding job descriptions.
+```{python}
+skills = ["python","sql","excel","machine learning","tableau","power bi","communication"]
+
+skill_counts = {s: text_data.str.contains(s).sum() for s in skills}
+
+skill_df = pd.DataFrame({
+    "skill": skill_counts.keys(),
+    "count": skill_counts.values()
+}).sort_values(by="count", ascending=False)
+
+skill_df
+```
+##3. Skill Keyword Count and Bar Chart
+##The skill keyword chart shows that SQL appears most often, followed by communication and Excel. This means employers are not only looking for technical ability, but also business communication and reporting skills. Python, Power BI, Tableau, and machine learning appear less frequently in this result, which may suggest that many postings are more focused on analytics, database querying, and business reporting than advanced machine learning. For students, SQL and communication should be treated as core employability skills.
+```{python}
+import matplotlib.pyplot as plt
+
+skill_df_sorted = skill_df.sort_values(by="count")
+
+plt.figure()
+plt.barh(skill_df_sorted["skill"], skill_df_sorted["count"])
+plt.title("Top Skills in Job Descriptions")
+plt.show()
+```
+```{python}
+df_salary = df.dropna(subset=["SALARY_MID"])
+df_salary["has_python"] = df_salary["TITLE_RAW"].astype(str).str.contains("python", na=False)
+df_salary.groupby("has_python")["SALARY_MID"].mean().reset_index()
+```
+##4. Python Salary Comparison
+##The salary comparison shows that jobs mentioning Python have a higher average salary than jobs that do not mention Python. The average salary for Python-related postings is about $114379.306499, compared with about $106080.000000 for non-Python postings. This suggests that Python may be associated with more technical or higher-value analytics roles. However, this result should be interpreted carefully because it shows correlation, not causation. Python may appear more often in advanced analytics or technical roles that already tend to pay more.
