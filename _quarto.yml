@@ -19,7 +19,7 @@ website:
       - href: index2.qmd
         text: "Home"
       - href: about.qmd
-        text: "Home"
+        text: "About Me"
       - href: data_cleaning.qmd
         text: "Data Preparation"
       - href: eda.qmd
