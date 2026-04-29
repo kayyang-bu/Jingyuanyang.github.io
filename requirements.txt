@@ -1,6 +1,8 @@
-jupyter
+jupyter-client
+jupyter-core
+ipykernel
 pandas
 matplotlib
 plotly
 seaborn
-sklearn
+scikit-learn
