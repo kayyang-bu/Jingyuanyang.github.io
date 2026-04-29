@@ -1,0 +1,323 @@
+---
+title: "Machine Learning"
+author: "GROUP IV"
+format:
+  html:
+    toc: true
+    theme: cosmo
+    embed-resources: true
+execute:
+  echo: false
+  eval: true
+  warning: false
+  message: false
+---
+
+# Machine Learning
+
+## Purpose
+
+This section applies machine learning methods to analyze AI, Machine Learning, Data Science, and Business Analytics related job trends in the 2024 job market.
+
+We use:
+
+- KMeans Clustering to segment job postings
+- Logistic Regression to classify whether a job is AI/ML/Data Science/Analytics related
+
+The goal is to understand how AI and data-related roles differ from other jobs and what this means for job seekers.
+
+```{python}
+import pandas as pd
+import numpy as np
+import os
+import gdown
+
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.cluster import KMeans
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+
+import plotly.io as pio
+pio.templates.default = "plotly_white"
+
+## Load Data
+
+url = "https://drive.google.com/uc?id=10I1L-q4C0vHT4NceidrJIjN1QkMTzFOz"
+output = "cleaned_data.csv"
+
+if not os.path.exists(output):
+    gdown.download(url, output, quiet=True)
+
+df = pd.read_csv(output)
+
+print(df.shape)
+df.head()
+```
+
+```{python}
+# Create AI / ML / Data Science classification target
+
+ai_ml_keywords = [
+    "ai", "artificial intelligence", "machine learning", "ml",
+    "data science", "data scientist", "deep learning",
+    "nlp", "natural language processing",
+    "computer vision",
+    "generative ai", "large language model", "llm",
+    "analytics", "business analyst", "data analyst"
+]
+
+df["TITLE_CLEAN"] = df["TITLE_CLEAN"].astype(str).str.lower()
+
+df["IS_AI_ML_ROLE"] = df["TITLE_CLEAN"].apply(
+    lambda x: 1 if any(keyword in x for keyword in ai_ml_keywords) else 0
+)
+
+print(df["IS_AI_ML_ROLE"].value_counts())
+print(df["IS_AI_ML_ROLE"].value_counts(normalize=True))
+```
+Approximately 34.5% of job postings are related to AI, Machine Learning, Data Science, or Analytics, while 65.5% are not.
+
+```{python}
+# KMeans Clustering with Enhanced Features
+
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.cluster import KMeans
+import pandas as pd
+import plotly.express as px
+
+# Select clustering features
+cluster_features = [
+    "SALARY_MID",
+    "MIN_YEARS_EXPERIENCE",
+    "IS_AI_ML_ROLE",
+    "REMOTE_TYPE_NAME",
+    "NAICS_2022_6_NAME"
+]
+
+features = df[cluster_features].dropna().copy()
+
+# Define numeric and categorical features
+numeric_features = [
+    "SALARY_MID",
+    "MIN_YEARS_EXPERIENCE",
+    "IS_AI_ML_ROLE"
+]
+
+categorical_features = [
+    "REMOTE_TYPE_NAME",
+    "NAICS_2022_6_NAME"
+]
+
+# Preprocess features
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), numeric_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+    ]
+)
+
+X_processed = preprocessor.fit_transform(features)
+
+# Run KMeans
+kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+features["cluster"] = kmeans.fit_predict(X_processed)
+
+print(features["cluster"].value_counts())
+
+# KMeans Scatter Plot
+
+fig = px.scatter(
+    features,
+    x="MIN_YEARS_EXPERIENCE",
+    y="SALARY_MID",
+    color=features["cluster"].astype(str),
+    title="KMeans Clustering with Enhanced Features",
+    labels={
+        "MIN_YEARS_EXPERIENCE": "Minimum Years of Experience",
+        "SALARY_MID": "Salary Midpoint",
+        "color": "Cluster"
+    }
+)
+
+fig.update_layout(template="plotly_white")
+
+fig.show()
+
+# KMeans Cluster Centers Heatmap
+
+# Get feature names after preprocessing
+encoded_cat_features = preprocessor.named_transformers_["cat"].get_feature_names_out(categorical_features)
+
+feature_names = numeric_features + list(encoded_cat_features)
+
+centers_df = pd.DataFrame(
+    kmeans.cluster_centers_,
+    columns=feature_names
+)
+
+centers_df.index = [f"Cluster {i}" for i in range(kmeans.n_clusters)]
+
+# Keep only key interpretable features
+important_features = [
+    "SALARY_MID",
+    "MIN_YEARS_EXPERIENCE",
+    "IS_AI_ML_ROLE",
+    "REMOTE_TYPE_NAME_Remote",
+    "REMOTE_TYPE_NAME_Hybrid Remote",
+    "REMOTE_TYPE_NAME_Not Remote"
+]
+
+available_features = [f for f in important_features if f in centers_df.columns]
+
+centers_filtered = centers_df[available_features]
+
+fig = px.imshow(
+    centers_filtered,
+    text_auto=".2f",
+    aspect="auto",
+    title="KMeans Cluster Centers Heatmap: Key Features",
+    labels=dict(x="Features", y="Clusters", color="Standardized Value")
+)
+
+fig.update_layout(
+    template="plotly_white",
+    xaxis_tickangle=30
+)
+
+fig.show()
+```
+The KMeans clustering results reveal three distinct job market segments based on salary, experience, AI classification, and remote work features.
+
+Cluster 0 represents lower-salary and lower-experience roles, with the lowest presence of AI-related jobs. However, this cluster shows a slightly higher proportion of remote work opportunities, indicating that entry-level positions are more flexible but less technical.
+
+Cluster 1 corresponds to higher-salary and higher-experience roles, but with a lower concentration of AI-related jobs. This suggests that many senior positions are still dominated by traditional, non-AI roles, even at higher salary levels.
+
+Cluster 2 is characterized by the highest concentration of AI/ML roles, despite having only moderate salary and experience levels. This indicates that AI-related jobs are more commonly found in mid-level positions rather than strictly in senior roles.
+
+Across all clusters, remote work features show minimal variation, suggesting that remote work is relatively evenly distributed and does not strongly influence job segmentation. Instead, salary, experience, and AI classification are the primary drivers of clustering.
+
+Overall, these results suggest that the job market is segmented into distinct tiers, where AI-related opportunities are concentrated in specific clusters rather than uniformly distributed. This highlights the importance for job seekers to target the right segment based on their experience level and technical skill set.
+
+```{python}
+# Select features for classification
+
+features = [
+    "MIN_YEARS_EXPERIENCE",
+    "SALARY_MID",
+    "LOCATION",
+    "NAICS_2022_6_NAME"
+]
+
+clf_df = df[features + ["IS_AI_ML_ROLE"]].dropna()
+
+X = clf_df[features]
+y = clf_df["IS_AI_ML_ROLE"]
+
+print(clf_df.shape)
+
+# Preprocessing
+
+categorical_features = ["LOCATION", "NAICS_2022_6_NAME"]
+numeric_features = ["MIN_YEARS_EXPERIENCE", "SALARY_MID"]
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("num", StandardScaler(), numeric_features),
+        ("cat", OneHotEncoder(handle_unknown="ignore"), categorical_features)
+    ]
+)
+
+# Model
+
+model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", LogisticRegression(max_iter=1000, class_weight="balanced"))
+    ]
+)
+
+from sklearn.model_selection import train_test_split
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y, test_size=0.2, random_state=42
+)
+
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix, classification_report
+
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("F1 Score:", f1_score(y_test, y_pred))
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred))
+```
+
+🔹 What the model does
+This model predicts whether a job posting is AI/ML/Data Science related based on experience, salary, location, and industry.
+
+🔹 Key Findings
+The model achieves an accuracy of approximately 68.5% and an F1 score of 0.61, indicating moderate predictive performance.
+It is better at identifying AI-related roles than random guessing, but still makes some classification errors.
+
+🔹 Interpretation
+The results suggest that AI/ML-related roles are influenced by multiple factors such as industry and location, rather than salary and experience alone.
+The relatively lower precision indicates that some non-AI roles share similar characteristics with AI roles, making classification challenging.
+
+🔹 Job Seeker Insight
+Job seekers aiming for AI/ML careers should not rely solely on salary or experience as indicators.
+Instead, they should focus on acquiring relevant technical skills and targeting industries where AI roles are more prevalent.
+
+```{python}
+from sklearn.ensemble import RandomForestClassifier
+
+rf_model = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("classifier", RandomForestClassifier(
+            n_estimators=200,
+            max_depth=10,
+            class_weight="balanced",   # ⭐关键
+            random_state=42
+        ))
+    ]
+)
+
+# Train model
+rf_model.fit(X_train, y_train)
+
+# Predict
+y_pred_rf = rf_model.predict(X_test)
+
+# Evaluation
+print("Random Forest Results")
+print("Accuracy:", accuracy_score(y_test, y_pred_rf))
+print("F1 Score:", f1_score(y_test, y_pred_rf))
+
+print("\nConfusion Matrix:")
+print(confusion_matrix(y_test, y_pred_rf))
+
+print("\nClassification Report:")
+print(classification_report(y_test, y_pred_rf))
+```
+
+🔹 Model Comparison
+We compared Logistic Regression and Random Forest for classifying AI/ML-related jobs.
+While both models achieved similar accuracy (around 68%), the Random Forest model produced a slightly higher F1 score, indicating better balance between precision and recall.
+This suggests that the relationship between job features and AI classification is not purely linear, and tree-based models can better capture complex patterns.
+
+Overall, the machine learning analysis reveals that the job market is clearly segmented by experience and salary, with AI/ML-related roles more concentrated in higher-paying clusters.
+The classification models show that predicting AI-related jobs requires multiple features such as industry and location, rather than relying on salary and experience alone.
+Among the models tested, Random Forest performs slightly better, suggesting that nonlinear relationships play an important role in distinguishing AI-related roles.
+These findings highlight the importance of targeting the right industries, developing relevant technical skills, and understanding market structure for job seekers aiming to enter AI and data-related careers.
